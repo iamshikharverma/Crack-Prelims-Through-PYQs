@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   Mail,
   Info,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +46,8 @@ import { PhilosophyPage } from "./components/PhilosophyPage";
 
 type View = "dashboard" | "quiz" | "contact" | "philosophy";
 
+type YearFilter = "all" | "10" | "20" | "30" | "40";
+
 type Category = 
   | "polity" 
   | "economy" 
@@ -76,6 +79,12 @@ export default function App() {
   const [score, setScore] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
   const [showNavigator, setShowNavigator] = useState(false);
+  const [yearFilter, setYearFilter] = useState<YearFilter>("all");
+
+  // Reset index when filter changes
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [yearFilter]);
 
   // Save answers to localStorage
   useEffect(() => {
@@ -158,11 +167,20 @@ export default function App() {
   ];
 
   const currentCategoryConfig = categories.find((c) => c.id === category);
-  const questions = currentCategoryConfig?.questions || [];
+  const allQuestions = currentCategoryConfig?.questions || [];
+  
+  const questions = useMemo(() => {
+    if (yearFilter === "all") return allQuestions;
+    const years = parseInt(yearFilter);
+    const currentYear = 2026;
+    const cutoffYear = currentYear - years;
+    return allQuestions.filter(q => q.year >= cutoffYear);
+  }, [allQuestions, yearFilter]);
+
   const currentQuestion = questions[currentIndex];
   
   const currentCategoryAnswers = category ? userAnswers[category] || {} : {};
-  const answeredCount = Object.keys(currentCategoryAnswers).length;
+  const answeredCount = questions.filter(q => currentCategoryAnswers[q.id] !== undefined).length;
   const progress = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
 
   // Calculate score for current category
@@ -170,8 +188,8 @@ export default function App() {
     if (category && questions.length > 0) {
       let newScore = 0;
       const answers = userAnswers[category] || {};
-      Object.entries(answers).forEach(([idx, ans]) => {
-        if (ans === questions[parseInt(idx)].correctAnswer) {
+      questions.forEach((q) => {
+        if (answers[q.id] === q.correctAnswer) {
           newScore++;
         }
       });
@@ -180,14 +198,14 @@ export default function App() {
   }, [category, userAnswers, questions]);
 
   const handleOptionSelect = (val: string) => {
-    if (!category) return;
+    if (!category || !currentQuestion) return;
     const optionIndex = parseInt(val);
 
     setUserAnswers((prev) => ({
       ...prev,
       [category]: {
         ...(prev[category] || {}),
-        [currentIndex]: optionIndex,
+        [currentQuestion.id]: optionIndex,
       },
     }));
   };
@@ -236,8 +254,24 @@ export default function App() {
     const catConfig = categories.find(c => c.id === catId);
     if (!catConfig) return 0;
     const answers = userAnswers[catId] || {};
-    const answered = Object.keys(answers).length;
-    return Math.round((answered / catConfig.questions.length) * 100);
+    
+    const filteredCatQuestions = yearFilter === "all" 
+      ? catConfig.questions 
+      : catConfig.questions.filter(q => q.year >= (2026 - parseInt(yearFilter)));
+      
+    if (filteredCatQuestions.length === 0) return 0;
+    
+    const answered = filteredCatQuestions.filter(q => answers[q.id] !== undefined).length;
+    return Math.round((answered / filteredCatQuestions.length) * 100);
+  };
+
+  const getQuestionCountForCategory = (catId: Category) => {
+    const catConfig = categories.find(c => c.id === catId);
+    if (!catConfig) return 0;
+    
+    if (yearFilter === "all") return catConfig.questions.length;
+    
+    return catConfig.questions.filter(q => q.year >= (2026 - parseInt(yearFilter))).length;
   };
 
   if (view === "contact") {
@@ -316,21 +350,25 @@ export default function App() {
                     <CardContent className="mt-auto relative z-10">
                       <div className="space-y-3">
                         <div className="flex justify-between text-sm font-medium">
-                          <span className="text-muted-foreground">{cat.questions.length} Questions</span>
+                          <span className="text-muted-foreground">{getQuestionCountForCategory(cat.id)} Questions</span>
                           <span className="text-primary font-bold">{getProgressForCategory(cat.id)}% Complete</span>
                         </div>
                         <Progress value={getProgressForCategory(cat.id)} className="h-2 bg-slate-200 dark:bg-slate-800" />
                       </div>
                     </CardContent>
                     
-                    <CardFooter className="relative z-10 pt-0">
-                      <Button variant="ghost" className={cn(
+                  <CardFooter className="relative z-10 pt-0">
+                    <Button 
+                      variant="ghost" 
+                      disabled={getQuestionCountForCategory(cat.id) === 0}
+                      className={cn(
                         "w-full font-bold text-lg group-hover:bg-primary group-hover:text-primary-foreground transition-all rounded-xl",
                         `group-hover:bg-${cat.color}-500`
-                      )}>
-                        Start Practice <ChevronRight className="ml-2 w-5 h-5" />
-                      </Button>
-                    </CardFooter>
+                      )}
+                    >
+                      {getQuestionCountForCategory(cat.id) === 0 ? "No Questions" : "Start Practice"} <ChevronRight className="ml-2 w-5 h-5" />
+                    </Button>
+                  </CardFooter>
                   </Card>
                 </motion.div>
               ))}
@@ -449,6 +487,30 @@ export default function App() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-8 md:py-12 relative">
+        <div className="flex flex-wrap justify-center gap-2 mb-8">
+          {[
+            { id: "all", label: "All Years" },
+            { id: "10", label: "Last 10" },
+            { id: "20", label: "Last 20" },
+            { id: "30", label: "Last 30" },
+            { id: "40", label: "Last 40" },
+          ].map((filter) => (
+            <Button
+              key={filter.id}
+              size="sm"
+              variant={yearFilter === filter.id ? "default" : "outline"}
+              onClick={() => setYearFilter(filter.id as YearFilter)}
+              className={cn(
+                "rounded-xl font-bold px-4 h-10 transition-all",
+                yearFilter === filter.id ? "shadow-md" : "hover:bg-primary/5"
+              )}
+            >
+              <Calendar className={cn("w-3.5 h-3.5 mr-1.5", yearFilter === filter.id ? "text-primary-foreground" : "text-primary")} />
+              {filter.label}
+            </Button>
+          ))}
+        </div>
+
         {/* Question Navigator Overlay */}
         <AnimatePresence>
           {showNavigator && (
@@ -463,10 +525,10 @@ export default function App() {
                 <Button variant="ghost" size="sm" onClick={() => setShowNavigator(false)}>Close</Button>
               </div>
               <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 max-h-[300px] overflow-y-auto p-1">
-                {questions.map((_, idx) => {
-                  const isAnswered = currentCategoryAnswers[idx] !== undefined;
+                {questions.map((q, idx) => {
+                  const isAnswered = currentCategoryAnswers[q.id] !== undefined;
                   const isCurrent = currentIndex === idx;
-                  const isCorrect = isAnswered && currentCategoryAnswers[idx] === questions[idx].correctAnswer;
+                  const isCorrect = isAnswered && currentCategoryAnswers[q.id] === q.correctAnswer;
                   
                   return (
                     <button
@@ -527,14 +589,14 @@ export default function App() {
 
               <CardContent className="px-8 md:px-10 pb-10 space-y-8">
                 <RadioGroup
-                  value={currentCategoryAnswers[currentIndex]?.toString() || ""}
+                  value={currentCategoryAnswers[currentQuestion.id]?.toString() || ""}
                   onValueChange={handleOptionSelect}
                   className="grid gap-4"
                 >
                   {currentQuestion.options.map((option, index) => {
                     const isCorrect = index === currentQuestion.correctAnswer;
-                    const isSelected = currentCategoryAnswers[currentIndex] === index;
-                    const hasAnswered = currentCategoryAnswers[currentIndex] !== undefined;
+                    const isSelected = currentCategoryAnswers[currentQuestion.id] === index;
+                    const hasAnswered = currentCategoryAnswers[currentQuestion.id] !== undefined;
                     
                     let variantClass = "border-border hover:border-primary/50 bg-card hover:shadow-md";
                     if (hasAnswered) {
@@ -583,7 +645,7 @@ export default function App() {
                   })}
                 </RadioGroup>
 
-                {currentCategoryAnswers[currentIndex] !== undefined && (
+                {currentCategoryAnswers[currentQuestion.id] !== undefined && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
