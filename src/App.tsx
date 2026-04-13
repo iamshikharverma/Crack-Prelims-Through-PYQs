@@ -47,6 +47,8 @@ import { PhilosophyPage } from "./components/PhilosophyPage";
 
 type View = "dashboard" | "quiz" | "contact" | "philosophy";
 
+type YearFilter = "all" | "15" | "30";
+
 type Category = 
   | "polity" 
   | "economy" 
@@ -71,8 +73,9 @@ export default function App() {
   const [view, setView] = useState<View>("dashboard");
   const [category, setCategory] = useState<Category | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [yearFilter, setYearFilter] = useState<YearFilter>("all");
   const [userAnswers, setUserAnswers] = useState<Record<string, Record<number, number | null>>>(() => {
-    const saved = localStorage.getItem("upsc_user_answers");
+    const saved = localStorage.getItem("upsc_user_answers_v2");
     return saved ? JSON.parse(saved) : {};
   });
   const [score, setScore] = useState(0);
@@ -95,7 +98,7 @@ export default function App() {
 
   // Save answers to localStorage
   useEffect(() => {
-    localStorage.setItem("upsc_user_answers", JSON.stringify(userAnswers));
+    localStorage.setItem("upsc_user_answers_v2", JSON.stringify(userAnswers));
   }, [userAnswers]);
 
   const categories: CategoryConfig[] = [
@@ -174,36 +177,52 @@ export default function App() {
   ];
 
   const currentCategoryConfig = categories.find((c) => c.id === category);
-  const questions = currentCategoryConfig?.questions || [];
+  const rawQuestions = currentCategoryConfig?.questions || [];
+  
+  const questions = useMemo(() => {
+    const currentYear = 2026;
+    if (yearFilter === "15") {
+      return rawQuestions.filter(q => q.year >= currentYear - 15);
+    }
+    if (yearFilter === "30") {
+      return rawQuestions.filter(q => q.year >= currentYear - 30);
+    }
+    return rawQuestions;
+  }, [rawQuestions, yearFilter]);
+
   const currentQuestion = questions[currentIndex];
   
   const currentCategoryAnswers = category ? userAnswers[category] || {} : {};
-  const answeredCount = Object.keys(currentCategoryAnswers).length;
+  
+  // Count answered questions in the CURRENT filtered set
+  const answeredCount = useMemo(() => {
+    return questions.filter(q => currentCategoryAnswers[q.id] !== undefined).length;
+  }, [questions, currentCategoryAnswers]);
+
   const progress = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
 
-  // Calculate score for current category
+  // Calculate score for current category based on CURRENT filtered set
   useEffect(() => {
     if (category && questions.length > 0) {
       let newScore = 0;
-      const answers = userAnswers[category] || {};
-      Object.entries(answers).forEach(([idx, ans]) => {
-        if (ans === questions[parseInt(idx)].correctAnswer) {
+      questions.forEach((q) => {
+        if (currentCategoryAnswers[q.id] === q.correctAnswer) {
           newScore++;
         }
       });
       setScore(newScore);
     }
-  }, [category, userAnswers, questions]);
+  }, [category, questions, currentCategoryAnswers]);
 
   const handleOptionSelect = (val: string) => {
-    if (!category) return;
+    if (!category || !currentQuestion) return;
     const optionIndex = parseInt(val);
 
     setUserAnswers((prev) => ({
       ...prev,
       [category]: {
         ...(prev[category] || {}),
-        [currentIndex]: optionIndex,
+        [currentQuestion.id]: optionIndex,
       },
     }));
   };
@@ -225,10 +244,16 @@ export default function App() {
   const handleRestart = () => {
     setCurrentIndex(0);
     if (category) {
-      setUserAnswers((prev) => ({
-        ...prev,
-        [category]: {},
-      }));
+      setUserAnswers((prev) => {
+        const newAnswers = { ...prev };
+        const categoryAnswers = { ...newAnswers[category] };
+        // Remove answers for the CURRENT filtered set
+        questions.forEach(q => {
+          delete categoryAnswers[q.id];
+        });
+        newAnswers[category] = categoryAnswers;
+        return newAnswers;
+      });
     }
     setScore(0);
     setIsFinished(false);
@@ -237,6 +262,7 @@ export default function App() {
   const handleCategorySelect = (cat: Category) => {
     setCategory(cat);
     setCurrentIndex(0);
+    setYearFilter("all");
     setIsFinished(false);
     setView("quiz");
   };
@@ -244,6 +270,7 @@ export default function App() {
   const handleBackToMenu = () => {
     setCategory(null);
     setCurrentIndex(0);
+    setYearFilter("all");
     setIsFinished(false);
     setView("dashboard");
   };
@@ -252,7 +279,8 @@ export default function App() {
     const catConfig = categories.find(c => c.id === catId);
     if (!catConfig) return 0;
     const answers = userAnswers[catId] || {};
-    const answered = Object.keys(answers).length;
+    // Count how many of THIS category's questions are answered
+    const answered = catConfig.questions.filter(q => answers[q.id] !== undefined).length;
     return Math.round((answered / catConfig.questions.length) * 100);
   };
 
@@ -526,14 +554,14 @@ export default function App() {
                 <Button variant="ghost" size="sm" onClick={() => setShowNavigator(false)}>Close</Button>
               </div>
               <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 max-h-[300px] overflow-y-auto p-1">
-                {questions.map((_, idx) => {
-                  const isAnswered = currentCategoryAnswers[idx] !== undefined;
+                {questions.map((q, idx) => {
+                  const isAnswered = currentCategoryAnswers[q.id] !== undefined;
                   const isCurrent = currentIndex === idx;
-                  const isCorrect = isAnswered && currentCategoryAnswers[idx] === questions[idx].correctAnswer;
+                  const isCorrect = isAnswered && currentCategoryAnswers[q.id] === q.correctAnswer;
                   
                   return (
                     <button
-                      key={idx}
+                      key={q.id}
                       onClick={() => {
                         setCurrentIndex(idx);
                         setShowNavigator(false);
@@ -554,152 +582,199 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentIndex}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Card className="border-2 shadow-xl rounded-2xl overflow-hidden bg-card/50 backdrop-blur-sm">
-              <CardHeader className="space-y-4 p-5 md:p-8">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={cn(
-                      "p-1.5 rounded-lg",
-                      `bg-${currentCategoryConfig?.color}-500/10 text-${currentCategoryConfig?.color}-600`
-                    )}>
-                      <HelpCircle className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground block">Question</span>
-                      <span className="text-lg font-heading font-black">{currentIndex + 1} of {questions.length}</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <div className="bg-muted px-3 py-1 rounded-full border border-border shadow-sm">
-                      <span className="text-[10px] font-black font-mono text-muted-foreground tracking-wider">UPSC {currentQuestion.year}</span>
-                    </div>
-                  </div>
-                </div>
-                <CardTitle className="text-lg md:text-2xl font-heading font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
-                  {currentQuestion.text}
-                </CardTitle>
-              </CardHeader>
+        <div className="flex justify-center mb-6">
+          <div className="bg-muted p-1 rounded-xl flex gap-1 border border-border">
+            <Button
+              variant={yearFilter === "all" ? "default" : "ghost"}
+              size="sm"
+              className="rounded-lg h-8 text-xs font-bold"
+              onClick={() => {
+                setYearFilter("all");
+                setCurrentIndex(0);
+              }}
+            >
+              All Time
+            </Button>
+            <Button
+              variant={yearFilter === "15" ? "default" : "ghost"}
+              size="sm"
+              className="rounded-lg h-8 text-xs font-bold"
+              onClick={() => {
+                setYearFilter("15");
+                setCurrentIndex(0);
+              }}
+            >
+              Past 15 Years
+            </Button>
+            <Button
+              variant={yearFilter === "30" ? "default" : "ghost"}
+              size="sm"
+              className="rounded-lg h-8 text-xs font-bold"
+              onClick={() => {
+                setYearFilter("30");
+                setCurrentIndex(0);
+              }}
+            >
+              Past 30 Years
+            </Button>
+          </div>
+        </div>
 
-              <CardContent className="px-5 md:px-8 pb-6 space-y-6">
-                <RadioGroup
-                  value={currentCategoryAnswers[currentIndex]?.toString() || ""}
-                  onValueChange={handleOptionSelect}
-                  className="grid gap-3"
-                >
-                  {currentQuestion.options.map((option, index) => {
-                    const isCorrect = index === currentQuestion.correctAnswer;
-                    const isSelected = currentCategoryAnswers[currentIndex] === index;
-                    const hasAnswered = currentCategoryAnswers[currentIndex] !== undefined;
-                    
-                    let variantClass = "border-border hover:border-primary/50 bg-card hover:shadow-sm";
-                    if (hasAnswered) {
-                      if (isCorrect) variantClass = "border-green-500 bg-green-500/10 text-green-700 dark:text-green-400 ring-1 ring-green-500/20";
-                      else if (isSelected) variantClass = "border-red-500 bg-red-500/10 text-red-700 dark:text-red-400 ring-1 ring-red-500/20";
-                      else variantClass = "opacity-40 border-border bg-card grayscale-[0.5]";
-                    } else if (isSelected) {
-                      variantClass = "border-primary bg-primary/5 ring-1 ring-primary/20";
-                    }
-
-                    return (
-                      <div key={index} className="relative group">
-                        <RadioGroupItem
-                          value={index.toString()}
-                          id={`q-${currentIndex}-opt-${index}`}
-                          className="sr-only"
-                        />
-                        <Label
-                          htmlFor={`q-${currentIndex}-opt-${index}`}
-                          className={cn(
-                            "flex items-start gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 cursor-pointer relative z-10",
-                            variantClass,
-                            !hasAnswered && "hover:-translate-y-0.5 active:scale-[0.99]"
-                          )}
-                        >
-                          <span className={cn(
-                            "flex items-center justify-center w-7 h-7 rounded-lg border-2 text-xs font-black shrink-0 mt-0.5 transition-colors",
-                            isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/20 text-muted-foreground"
-                          )}>
-                            {String.fromCharCode(65 + index)}
-                          </span>
-                          <span className="text-base md:text-lg font-medium leading-relaxed pt-0.5">{option}</span>
-                          {hasAnswered && isCorrect && (
-                            <div className="ml-auto bg-green-500 text-white p-0.5 rounded-full shadow-lg">
-                              <CheckCircle2 className="w-4 h-4" />
-                            </div>
-                          )}
-                          {hasAnswered && isSelected && !isCorrect && (
-                            <div className="ml-auto bg-red-500 text-white p-0.5 rounded-full shadow-lg">
-                              <XCircle className="w-4 h-4" />
-                            </div>
-                          )}
-                        </Label>
+        {questions.length === 0 ? (
+          <div className="text-center py-20">
+            <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-xl font-bold mb-2">No Recent Questions Found</h3>
+            <p className="text-muted-foreground max-w-md mx-auto">You Are Better Off Focusing On Other Subjects With Higher Return On Investment</p>
+            <Button variant="outline" className="mt-4" onClick={() => setYearFilter("all")}>Show All Questions</Button>
+          </div>
+        ) : (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentIndex + yearFilter}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="border-2 shadow-xl rounded-2xl overflow-hidden bg-card/50 backdrop-blur-sm">
+                <CardHeader className="space-y-4 p-5 md:p-8">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "p-1.5 rounded-lg",
+                        `bg-${currentCategoryConfig?.color}-500/10 text-${currentCategoryConfig?.color}-600`
+                      )}>
+                        <HelpCircle className="w-5 h-5" />
                       </div>
-                    );
-                  })}
-                </RadioGroup>
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground block">Question</span>
+                        <span className="text-lg font-heading font-black">{currentIndex + 1} of {questions.length}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <div className="bg-muted px-3 py-1 rounded-full border border-border shadow-sm">
+                        <span className="text-[10px] font-black font-mono text-muted-foreground tracking-wider">UPSC {currentQuestion.year}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <CardTitle className="text-lg md:text-2xl font-heading font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
+                    {currentQuestion.text}
+                  </CardTitle>
+                </CardHeader>
 
-                {currentCategoryAnswers[currentIndex] !== undefined && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-6 space-y-4"
+                <CardContent className="px-5 md:px-8 pb-6 space-y-6">
+                  <RadioGroup
+                    value={currentCategoryAnswers[currentQuestion.id]?.toString() || ""}
+                    onValueChange={handleOptionSelect}
+                    className="grid gap-3"
                   >
-                    <Separator className="h-0.5 bg-slate-200 dark:bg-slate-800" />
-                    <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-primary/10 shadow-inner">
-                      <div className="flex items-center gap-2 text-primary mb-2">
-                        <div className="bg-primary/10 p-1.5 rounded-lg">
-                          <AlertCircle className="w-5 h-5" />
+                    {currentQuestion.options.map((option, index) => {
+                      const isCorrect = index === currentQuestion.correctAnswer;
+                      const isSelected = currentCategoryAnswers[currentQuestion.id] === index;
+                      const hasAnswered = currentCategoryAnswers[currentQuestion.id] !== undefined;
+                      
+                      let variantClass = "border-border hover:border-primary/50 bg-card hover:shadow-sm";
+                      if (hasAnswered) {
+                        if (isCorrect) variantClass = "border-green-500 bg-green-500/10 text-green-700 dark:text-green-400 ring-1 ring-green-500/20";
+                        else if (isSelected) variantClass = "border-red-500 bg-red-500/10 text-red-700 dark:text-red-400 ring-1 ring-red-500/20";
+                        else variantClass = "opacity-40 border-border bg-card grayscale-[0.5]";
+                      } else if (isSelected) {
+                        variantClass = "border-primary bg-primary/5 ring-1 ring-primary/20";
+                      }
+
+                      return (
+                        <div key={index} className="relative group">
+                          <RadioGroupItem
+                            value={index.toString()}
+                            id={`q-${currentIndex}-opt-${index}`}
+                            className="sr-only"
+                          />
+                          <Label
+                            htmlFor={`q-${currentIndex}-opt-${index}`}
+                            className={cn(
+                              "flex items-start gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 cursor-pointer relative z-10",
+                              variantClass,
+                              !hasAnswered && "hover:-translate-y-0.5 active:scale-[0.99]"
+                            )}
+                          >
+                            <span className={cn(
+                              "flex items-center justify-center w-7 h-7 rounded-lg border-2 text-xs font-black shrink-0 mt-0.5 transition-colors",
+                              isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/20 text-muted-foreground"
+                            )}>
+                              {String.fromCharCode(65 + index)}
+                            </span>
+                            <span className="text-base md:text-lg font-medium leading-relaxed pt-0.5">{option}</span>
+                            {hasAnswered && isCorrect && (
+                              <div className="ml-auto bg-green-500 text-white p-0.5 rounded-full shadow-lg">
+                                <CheckCircle2 className="w-4 h-4" />
+                              </div>
+                            )}
+                            {hasAnswered && isSelected && !isCorrect && (
+                              <div className="ml-auto bg-red-500 text-white p-0.5 rounded-full shadow-lg">
+                                <XCircle className="w-4 h-4" />
+                              </div>
+                            )}
+                          </Label>
                         </div>
-                        <h3 className="font-heading font-black text-lg tracking-tight">Explanation</h3>
-                      </div>
-                      <p className="text-slate-600 dark:text-slate-400 text-base leading-relaxed font-medium">
-                        {currentQuestion.explanation}
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
-              </CardContent>
+                      );
+                    })}
+                  </RadioGroup>
 
-              <CardFooter className="bg-slate-100/50 dark:bg-slate-900/50 border-t border-border p-5 flex flex-col sm:flex-row gap-4 justify-between items-center">
-                <div className="flex gap-3 w-full sm:w-auto">
-                  <Button 
-                    onClick={handlePrevious} 
-                    disabled={currentIndex === 0}
-                    variant="outline" 
-                    size="sm"
-                    className="flex-1 sm:w-32 h-11 rounded-xl font-bold text-base shadow-sm border-2"
-                  >
-                    <RotateCcw className="mr-2 w-4 h-4 rotate-180" />
-                    Prev
-                  </Button>
-                  <Button 
-                    onClick={handleNext} 
-                    size="sm"
-                    className="flex-1 sm:w-32 h-11 rounded-xl font-bold text-base shadow-lg"
-                  >
-                    {currentIndex < questions.length - 1 ? "Next" : "Finish"}
-                    <ChevronRight className="ml-1 w-4 h-4" />
-                  </Button>
-                </div>
-                
-                <div className="flex items-center gap-2 px-4 py-2 bg-background rounded-xl border border-border shadow-sm">
-                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                  <span className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
-                    Score: {score} / {answeredCount}
-                  </span>
-                </div>
-              </CardFooter>
-            </Card>
-          </motion.div>
-        </AnimatePresence>
+                  {currentCategoryAnswers[currentQuestion.id] !== undefined && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-6 space-y-4"
+                    >
+                      <Separator className="h-0.5 bg-slate-200 dark:bg-slate-800" />
+                      <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-primary/10 shadow-inner">
+                        <div className="flex items-center gap-2 text-primary mb-2">
+                          <div className="bg-primary/10 p-1.5 rounded-lg">
+                            <AlertCircle className="w-5 h-5" />
+                          </div>
+                          <h3 className="font-heading font-black text-lg tracking-tight">Explanation</h3>
+                        </div>
+                        <p className="text-slate-600 dark:text-slate-400 text-base leading-relaxed font-medium">
+                          {currentQuestion.explanation}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </CardContent>
+
+                <CardFooter className="bg-slate-100/50 dark:bg-slate-900/50 border-t border-border p-5 flex flex-col sm:flex-row gap-4 justify-between items-center">
+                  <div className="flex gap-3 w-full sm:w-auto">
+                    <Button 
+                      onClick={handlePrevious} 
+                      disabled={currentIndex === 0}
+                      variant="outline" 
+                      size="sm"
+                      className="flex-1 sm:w-32 h-11 rounded-xl font-bold text-base shadow-sm border-2"
+                    >
+                      <RotateCcw className="mr-2 w-4 h-4 rotate-180" />
+                      Prev
+                    </Button>
+                    <Button 
+                      onClick={handleNext} 
+                      size="sm"
+                      className="flex-1 sm:w-32 h-11 rounded-xl font-bold text-base shadow-lg"
+                    >
+                      {currentIndex < questions.length - 1 ? "Next" : "Finish"}
+                      <ChevronRight className="ml-1 w-4 h-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 px-4 py-2 bg-background rounded-xl border border-border shadow-sm">
+                    <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    <span className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                      Score: {score} / {answeredCount}
+                    </span>
+                  </div>
+                </CardFooter>
+              </Card>
+            </motion.div>
+          </AnimatePresence>
+        )}
       </main>
       <Footer />
     </div>

@@ -45,7 +45,7 @@ export function PhilosophyPage({ onBack }: PhilosophyPageProps) {
             <CardContent className="p-5 md:p-8 space-y-6 text-base md:text-lg leading-relaxed text-slate-700 dark:text-slate-300">
               <div className="space-y-4">
                 <p>
-                  There are around 4,500 Previous Year Questions on this website including ones going all the way back to 1980 (and yes, they still get repeated). Together, they pretty much cover every subject asked in the UPSC Prelims.
+                  There are around 3,000 Previous Year Questions on this website including ones going all the way back to 1980 (and yes, they still get repeated). Together, they pretty much cover every subject asked in the UPSC Prelims.
                 </p>
                 <p>
                   The idea is instead of trying to first “complete the syllabus” (which honestly feels endless, like it includes everything under the sun), flip the approach: learn concepts through questions. You’ll realise the syllabus isn’t as infinite as it seems.
@@ -76,7 +76,7 @@ export function PhilosophyPage({ onBack }: PhilosophyPageProps) {
                 <div className="bg-primary/5 p-6 rounded-2xl border border-primary/10 relative">
                   <Heart className="w-6 h-6 text-primary absolute -top-3 -left-3 bg-slate-50 dark:bg-slate-950 rounded-full p-1" />
                   <p className="text-lg md:text-xl font-heading font-bold text-primary italic text-center">
-                    "Play it well. Enjoy the process a little. And don’t get too attached to the outcome – that’s the 'BAWA' approach. Not just for exams, but honestly, for life too."
+                    "Enjoy preparing for UPSC like you enjoy playing computer games, because the winner often is the one who has the most fun playing it – that’s the 'BAWA' approach. Not just for exams, but honestly, for life too."
                   </p>
                 </div>
               </div>
