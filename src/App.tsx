@@ -278,6 +278,9 @@ export default function App() {
               <h1 className="text-3xl md:text-5xl font-heading font-black tracking-tight mb-4 bg-gradient-to-r from-primary via-purple-500 to-blue-600 bg-clip-text text-transparent">
                 Crack UPSC Prelims Through PYQs
               </h1>
+              <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 p-4 rounded-xl border border-amber-200 dark:border-amber-800 font-medium text-sm">
+                There are some bugs in Environment and Science and Tech section with questions being repeated, that's being fixed!
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
