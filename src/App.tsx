@@ -14,6 +14,9 @@ import {
   Info,
   Moon,
   Sun,
+  Brain,
+  Calendar,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,8 +47,9 @@ import { cn } from "@/lib/utils";
 import { Footer } from "./components/Footer";
 import { ContactPage } from "./components/ContactPage";
 import { PhilosophyPage } from "./components/PhilosophyPage";
+import { SRSData, INITIAL_SRS, calculateSM2 } from "@/lib/srs";
 
-type View = "dashboard" | "quiz" | "contact" | "philosophy";
+type View = "dashboard" | "quiz" | "contact" | "philosophy" | "review";
 
 type YearFilter = "all" | "15" | "30";
 
@@ -81,10 +85,35 @@ export default function App() {
   const [score, setScore] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
   const [showNavigator, setShowNavigator] = useState(false);
+  const [showWrongOnly, setShowWrongOnly] = useState(false);
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem("upsc_dark_mode");
     return saved ? JSON.parse(saved) : true; // Default to true
   });
+  const [srsRecords, setSrsRecords] = useState<Record<number, SRSData>>(() => {
+    const saved = localStorage.getItem("upsc_srs_records");
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const allQuestions = useMemo(() => [
+    ...polityQuestions,
+    ...economyQuestions,
+    ...ancientHistoryQuestions,
+    ...medievalHistoryQuestions,
+    ...artCultureQuestions,
+    ...modernHistoryQuestions,
+    ...geographyQuestions,
+    ...environmentQuestions,
+    ...scienceTechQuestions,
+  ], []);
+
+  const dueQuestions = useMemo(() => {
+    const now = new Date();
+    return allQuestions.filter(q => {
+      const record = srsRecords[q.id];
+      return record && new Date(record.nextReview) <= now;
+    });
+  }, [allQuestions, srsRecords]);
 
   // Apply dark mode
   useEffect(() => {
@@ -100,6 +129,11 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("upsc_user_answers_v2", JSON.stringify(userAnswers));
   }, [userAnswers]);
+
+  // Save SRS records
+  useEffect(() => {
+    localStorage.setItem("upsc_srs_records", JSON.stringify(srsRecords));
+  }, [srsRecords]);
 
   const categories: CategoryConfig[] = [
     {
@@ -180,20 +214,37 @@ export default function App() {
   const rawQuestions = currentCategoryConfig?.questions || [];
   
   const questions = useMemo(() => {
+    if (view === "review") return dueQuestions;
     const currentYear = 2026;
+    let filtered = rawQuestions;
+    
     if (yearFilter === "15") {
-      return rawQuestions.filter(q => q.year >= currentYear - 15);
+      filtered = filtered.filter(q => q.year >= currentYear - 15);
+    } else if (yearFilter === "30") {
+      filtered = filtered.filter(q => q.year >= currentYear - 30);
     }
-    if (yearFilter === "30") {
-      return rawQuestions.filter(q => q.year >= currentYear - 30);
+
+    if (showWrongOnly && category) {
+      const catAnswers = userAnswers[category] || {};
+      filtered = filtered.filter(q => 
+        catAnswers[q.id] !== undefined && catAnswers[q.id] !== q.correctAnswer
+      );
     }
-    return rawQuestions;
-  }, [rawQuestions, yearFilter]);
+
+    return filtered;
+  }, [rawQuestions, yearFilter, view, dueQuestions, showWrongOnly, category, userAnswers]);
 
   const currentQuestion = questions[currentIndex];
   
-  const currentCategoryAnswers = category ? userAnswers[category] || {} : {};
+  const currentCategoryAnswers = view === "review" ? userAnswers["review"] || {} : (category ? userAnswers[category] || {} : {});
   
+  // Clamp currentIndex if questions list changes (e.g. in Wrong Only mode)
+  useEffect(() => {
+    if (questions.length > 0 && currentIndex >= questions.length) {
+      setCurrentIndex(questions.length - 1);
+    }
+  }, [questions.length, currentIndex]);
+
   // Count answered questions in the CURRENT filtered set
   const answeredCount = useMemo(() => {
     return questions.filter(q => currentCategoryAnswers[q.id] !== undefined).length;
@@ -215,15 +266,38 @@ export default function App() {
   }, [category, questions, currentCategoryAnswers]);
 
   const handleOptionSelect = (val: string) => {
-    if (!category || !currentQuestion) return;
+    if ((!category && view !== "review") || !currentQuestion) return;
     const optionIndex = parseInt(val);
+
+    const catKey = view === "review" ? "review" : category!;
 
     setUserAnswers((prev) => ({
       ...prev,
-      [category]: {
-        ...(prev[category] || {}),
+      [catKey]: {
+        ...(prev[catKey] || {}),
         [currentQuestion.id]: optionIndex,
       },
+    }));
+
+    // Automatically update SRS if they get it wrong
+    if (optionIndex !== currentQuestion.correctAnswer) {
+      updateSRS(currentQuestion.id, 0); // Quality 0 = Again
+    } else {
+      // If they get it right, we could update it with a default quality, 
+      // but maybe better to let them rate it.
+      // For now, let's auto-update with quality 4 (Good) if it's already in SRS
+      if (srsRecords[currentQuestion.id]) {
+        updateSRS(currentQuestion.id, 4);
+      }
+    }
+  };
+
+  const updateSRS = (questionId: number, quality: number) => {
+    const prev = srsRecords[questionId] || INITIAL_SRS;
+    const next = calculateSM2(quality, prev.repetition, prev.interval, prev.efactor);
+    setSrsRecords(records => ({
+      ...records,
+      [questionId]: next
     }));
   };
 
@@ -263,6 +337,7 @@ export default function App() {
     setCategory(cat);
     setCurrentIndex(0);
     setYearFilter("all");
+    setShowWrongOnly(false);
     setIsFinished(false);
     setView("quiz");
   };
@@ -271,8 +346,15 @@ export default function App() {
     setCategory(null);
     setCurrentIndex(0);
     setYearFilter("all");
+    setShowWrongOnly(false);
     setIsFinished(false);
     setView("dashboard");
+    // Clear review answers so it's fresh for next time
+    setUserAnswers(prev => {
+      const next = { ...prev };
+      delete next["review"];
+      return next;
+    });
   };
 
   const getProgressForCategory = (catId: Category) => {
@@ -364,6 +446,36 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
+              {dueQuestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="md:col-span-2 lg:col-span-3"
+                >
+                  <Card 
+                    className="group cursor-pointer transition-all duration-300 hover:shadow-2xl border-2 border-primary/50 bg-primary/5 relative overflow-hidden flex flex-col md:flex-row items-center p-6 gap-6"
+                    onClick={() => {
+                      setView("review");
+                      setCategory(null);
+                      setCurrentIndex(0);
+                      setIsFinished(false);
+                    }}
+                  >
+                    <div className="w-20 h-20 rounded-3xl bg-primary/20 flex items-center justify-center shadow-lg shrink-0">
+                      <Brain className="w-10 h-10 text-primary" />
+                    </div>
+                    <div className="flex-1 text-center md:text-left">
+                      <h2 className="text-2xl font-heading font-black mb-1">Daily Review</h2>
+                      <p className="text-muted-foreground font-medium mb-4 md:mb-0">
+                        You have <span className="text-primary font-bold">{dueQuestions.length}</span> questions due for review based on Spaced Repetition.
+                      </p>
+                    </div>
+                    <Button size="lg" className="rounded-2xl font-black px-8 h-14 shadow-xl">
+                      Start Review <ChevronRight className="ml-2 w-5 h-5" />
+                    </Button>
+                  </Card>
+                </motion.div>
+              )}
               {categories.map((cat, idx) => (
                 <motion.div
                   key={cat.id}
@@ -426,6 +538,10 @@ export default function App() {
   }
 
   if (isFinished) {
+    const accentColor = view === "review" ? "primary" : (currentCategoryConfig?.color || "primary");
+    const title = view === "review" ? "Review Completed!" : "Quiz Completed!";
+    const subtitle = view === "review" ? "Daily Review Session" : `You've finished the ${currentCategoryConfig?.title}`;
+
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4 font-sans">
         <motion.div
@@ -434,24 +550,24 @@ export default function App() {
           className="w-full max-w-lg"
         >
           <Card className="border-2 shadow-2xl rounded-[2.5rem] overflow-hidden bg-card/50 backdrop-blur-md">
-            <div className={cn("h-3 w-full", `bg-${currentCategoryConfig?.color}-500`)} />
+            <div className={cn("h-3 w-full", `bg-${accentColor}-500`)} />
             <CardHeader className="text-center pb-2 pt-10">
               <motion.div 
                 initial={{ rotate: -10, scale: 0.8 }}
                 animate={{ rotate: 0, scale: 1 }}
-                className={cn("mx-auto w-24 h-24 rounded-3xl flex items-center justify-center mb-6 shadow-lg", `bg-${currentCategoryConfig?.color}-500/10 text-${currentCategoryConfig?.color}-600`)}
+                className={cn("mx-auto w-24 h-24 rounded-3xl flex items-center justify-center mb-6 shadow-lg", `bg-${accentColor}-500/10 text-${accentColor}-600`)}
               >
                 <Trophy className="w-12 h-12" />
               </motion.div>
-              <CardTitle className="text-4xl font-heading font-black tracking-tight">Quiz Completed!</CardTitle>
+              <CardTitle className="text-4xl font-heading font-black tracking-tight">{title}</CardTitle>
               <CardDescription className="text-xl font-medium mt-2">
-                You've finished the {currentCategoryConfig?.title}
+                {subtitle}
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center space-y-8 p-10">
               <div className="space-y-3">
                 <p className="text-xs text-muted-foreground uppercase tracking-[0.3em] font-black">Your Final Score</p>
-                <div className={cn("text-8xl font-heading font-black", `text-${currentCategoryConfig?.color}-600`)}>
+                <div className={cn("text-8xl font-heading font-black", `text-${accentColor}-600`)}>
                   {score} <span className="text-3xl text-muted-foreground font-bold">/ {questions.length}</span>
                 </div>
               </div>
@@ -471,7 +587,7 @@ export default function App() {
               <div className="grid grid-cols-2 gap-4 pt-4">
                 <div className="p-4 bg-green-500/5 rounded-2xl border-2 border-green-500/10">
                   <p className="text-xs font-black uppercase tracking-widest text-green-600 mb-1">Accuracy</p>
-                  <p className="text-2xl font-black text-green-700">{Math.round((score / answeredCount) * 100)}%</p>
+                  <p className="text-2xl font-black text-green-700">{answeredCount > 0 ? Math.round((score / answeredCount) * 100) : 0}%</p>
                 </div>
                 <div className="p-4 bg-blue-500/5 rounded-2xl border-2 border-blue-500/10">
                   <p className="text-xs font-black uppercase tracking-widest text-blue-600 mb-1">Answered</p>
@@ -480,9 +596,9 @@ export default function App() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4 p-10 pt-0">
-              <Button onClick={handleRestart} className={cn("w-full h-16 text-xl font-black rounded-2xl shadow-lg transition-all hover:scale-[1.02]", `bg-${currentCategoryConfig?.color}-500 hover:bg-${currentCategoryConfig?.color}-600`)}>
+              <Button onClick={handleRestart} className={cn("w-full h-16 text-xl font-black rounded-2xl shadow-lg transition-all hover:scale-[1.02]", `bg-${accentColor}-500 hover:bg-${accentColor}-600`)}>
                 <RotateCcw className="mr-3 w-6 h-6" />
-                Retake Quiz
+                Retake Session
               </Button>
               <Button onClick={handleBackToMenu} className="w-full h-16 text-xl font-black rounded-2xl border-2 shadow-sm" variant="outline">
                 Back to Dashboard
@@ -617,15 +733,46 @@ export default function App() {
             >
               Past 30 Years
             </Button>
+            <Separator orientation="vertical" className="h-4 my-auto mx-1 bg-border" />
+            <Button
+              variant={showWrongOnly ? "destructive" : "ghost"}
+              size="sm"
+              className={cn(
+                "rounded-lg h-8 text-xs font-bold gap-1.5",
+                showWrongOnly && "bg-red-500 hover:bg-red-600 text-white"
+              )}
+              onClick={() => {
+                setShowWrongOnly(!showWrongOnly);
+                setCurrentIndex(0);
+              }}
+            >
+              <XCircle className="w-3 h-3" />
+              Wrong Only
+            </Button>
           </div>
         </div>
 
         {questions.length === 0 ? (
           <div className="text-center py-20">
             <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-xl font-bold mb-2">No Recent Questions Found</h3>
-            <p className="text-muted-foreground max-w-md mx-auto">You Are Better Off Focusing On Other Subjects With Higher Return On Investment</p>
-            <Button variant="outline" className="mt-4" onClick={() => setYearFilter("all")}>Show All Questions</Button>
+            <h3 className="text-xl font-bold mb-2">
+              {showWrongOnly ? "No Wrong Questions Found!" : "No Recent Questions Found"}
+            </h3>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              {showWrongOnly 
+                ? "Great job! You've cleared all your mistakes in this subject." 
+                : "You Are Better Off Focusing On Other Subjects With Higher Return On Investment"}
+            </p>
+            <Button 
+              variant="outline" 
+              className="mt-4" 
+              onClick={() => {
+                setYearFilter("all");
+                setShowWrongOnly(false);
+              }}
+            >
+              Show All Questions
+            </Button>
           </div>
         ) : (
           <AnimatePresence mode="wait">
@@ -737,6 +884,36 @@ export default function App() {
                         <p className="text-slate-600 dark:text-slate-400 text-base leading-relaxed font-medium">
                           {currentQuestion.explanation}
                         </p>
+
+                        <div className="mt-4 pt-4 border-t border-border">
+                          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">Rate Difficulty (SRS)</p>
+                          <div className="grid grid-cols-4 gap-2">
+                            {[
+                              { label: "Again", q: 0, color: "red" },
+                              { label: "Hard", q: 3, color: "orange" },
+                              { label: "Good", q: 4, color: "green" },
+                              { label: "Easy", q: 5, color: "blue" },
+                            ].map((btn) => (
+                              <Button
+                                key={btn.label}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateSRS(currentQuestion.id, btn.q)}
+                                className="h-10 text-[10px] font-black uppercase tracking-tighter rounded-xl border-2 hover:border-primary/50"
+                              >
+                                {btn.label}
+                              </Button>
+                            ))}
+                          </div>
+                          {srsRecords[currentQuestion.id] && (
+                            <div className="mt-3 flex items-center gap-2 text-[10px] font-bold text-muted-foreground">
+                              <Calendar className="w-3 h-3" />
+                              Next Review: {new Date(srsRecords[currentQuestion.id].nextReview).toLocaleDateString()}
+                              <Clock className="w-3 h-3 ml-2" />
+                              Interval: {srsRecords[currentQuestion.id].interval}d
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </motion.div>
                   )}
