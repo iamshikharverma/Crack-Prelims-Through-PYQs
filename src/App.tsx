@@ -251,36 +251,39 @@ export default function App() {
   if (view === "dashboard") {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans">
-        <div className="p-4 md:p-8 flex-1">
+        <div className="p-3 md:p-8 flex-1">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="w-full max-w-6xl mx-auto"
           >
-            <div className="flex justify-center md:justify-end gap-4 mb-8">
+            <div className="flex justify-center md:justify-end gap-2 mb-4 md:mb-8">
               <Button 
                 variant="ghost" 
+                size="sm"
                 className="rounded-xl font-bold gap-2"
                 onClick={() => setView("philosophy")}
               >
-                <Info className="w-5 h-5" /> Philosophy
+                <Info className="w-4 h-4" /> Philosophy
               </Button>
               <Button 
                 variant="ghost" 
+                size="sm"
                 className="rounded-xl font-bold gap-2"
                 onClick={() => setView("contact")}
               >
-                <Mail className="w-5 h-5" /> Contact Shikhar
+                <Mail className="w-4 h-4" /> Contact Shikhar
               </Button>
             </div>
 
-            <div className="text-center mb-12">
-              <h1 className="text-3xl md:text-5xl font-heading font-black tracking-tight mb-4 bg-gradient-to-r from-primary via-purple-500 to-blue-600 bg-clip-text text-transparent">
-                Crack UPSC Prelims Through PYQs
+            <div className="text-center mb-6 md:mb-10">
+              <h1 className="text-2xl md:text-5xl font-heading font-black tracking-tight mb-2 bg-gradient-to-r from-primary via-purple-500 to-blue-600 bg-clip-text text-transparent">
+                Crack UPSC Prelims
               </h1>
+              <p className="text-sm md:text-lg text-muted-foreground font-medium">Practice with Previous Year Questions</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
               {categories.map((cat, idx) => (
                 <motion.div
                   key={cat.id}
@@ -300,35 +303,35 @@ export default function App() {
                       `bg-${cat.color}-500`
                     )} />
                     
-                    <CardHeader className="relative z-10">
+                    <CardHeader className="relative z-10 p-5">
                       <div className={cn(
-                        "w-14 h-14 rounded-2xl flex items-center justify-center mb-4 transition-all group-hover:scale-110 group-hover:rotate-3 shadow-lg",
+                        "w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-all group-hover:scale-110 group-hover:rotate-3 shadow-lg",
                         `bg-${cat.color}-500/10 text-${cat.color}-600`
                       )}>
-                        <cat.icon className="w-8 h-8" />
+                        <cat.icon className="w-6 h-6" />
                       </div>
-                      <CardTitle className="text-2xl font-heading font-bold">{cat.title}</CardTitle>
-                      <CardDescription className="text-base line-clamp-2">
+                      <CardTitle className="text-xl font-heading font-bold">{cat.title}</CardTitle>
+                      <CardDescription className="text-sm line-clamp-2">
                         {cat.description}
                       </CardDescription>
                     </CardHeader>
                     
-                    <CardContent className="mt-auto relative z-10">
-                      <div className="space-y-3">
-                        <div className="flex justify-between text-sm font-medium">
+                    <CardContent className="mt-auto relative z-10 p-5 pt-0">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-medium">
                           <span className="text-muted-foreground">{cat.questions.length} Questions</span>
-                          <span className="text-primary font-bold">{getProgressForCategory(cat.id)}% Complete</span>
+                          <span className="text-primary font-bold">{getProgressForCategory(cat.id)}%</span>
                         </div>
-                        <Progress value={getProgressForCategory(cat.id)} className="h-2 bg-slate-200 dark:bg-slate-800" />
+                        <Progress value={getProgressForCategory(cat.id)} className="h-1.5 bg-slate-200 dark:bg-slate-800" />
                       </div>
                     </CardContent>
                     
-                    <CardFooter className="relative z-10 pt-0">
-                      <Button variant="ghost" className={cn(
-                        "w-full font-bold text-lg group-hover:bg-primary group-hover:text-primary-foreground transition-all rounded-xl",
+                    <CardFooter className="relative z-10 p-5 pt-0">
+                      <Button variant="ghost" size="sm" className={cn(
+                        "w-full font-bold text-base group-hover:bg-primary group-hover:text-primary-foreground transition-all rounded-xl",
                         `group-hover:bg-${cat.color}-500`
                       )}>
-                        Start Practice <ChevronRight className="ml-2 w-5 h-5" />
+                        Start Practice <ChevronRight className="ml-1 w-4 h-4" />
                       </Button>
                     </CardFooter>
                   </Card>
@@ -415,23 +418,23 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-foreground font-sans selection:bg-primary/20 flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 cursor-pointer group" onClick={handleBackToMenu}>
-            <h1 className="font-heading font-black text-xl tracking-tight">
-              Crack UPSC Prelims
+        <div className="max-w-5xl mx-auto px-4 py-2 md:py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 cursor-pointer group" onClick={handleBackToMenu}>
+            <h1 className="font-heading font-black text-lg md:text-xl tracking-tight">
+              Crack UPSC
             </h1>
           </div>
           
-          <div className="flex-1 max-w-md flex items-center gap-4">
+          <div className="flex-1 max-w-md flex items-center gap-3">
             <div className="flex-1 hidden sm:block">
-              <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                <span>Overall Progress</span>
+              <div className="flex justify-between text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">
+                <span>Progress</span>
                 <span>{Math.round(progress)}%</span>
               </div>
-              <Progress value={progress} className="h-2 shadow-inner" />
+              <Progress value={progress} className="h-1.5 shadow-inner" />
             </div>
-            <div className="bg-muted px-4 py-2 rounded-xl border border-border flex items-center gap-2 shadow-sm">
-              <span className="text-sm font-black font-mono">
+            <div className="bg-muted px-3 py-1 rounded-lg border border-border flex items-center gap-1.5 shadow-sm">
+              <span className="text-xs font-black font-mono">
                 {currentIndex + 1} <span className="text-muted-foreground font-medium">/ {questions.length}</span>
               </span>
             </div>
@@ -440,15 +443,15 @@ export default function App() {
           <Button 
             variant="outline" 
             size="icon" 
-            className="rounded-xl shadow-sm"
+            className="rounded-xl shadow-sm h-9 w-9"
             onClick={() => setShowNavigator(!showNavigator)}
           >
-            <LayoutDashboard className="w-5 h-5" />
+            <LayoutDashboard className="w-4 h-4" />
           </Button>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-8 md:py-12 relative">
+      <main className="max-w-5xl mx-auto px-3 py-4 md:py-8 relative">
         {/* Question Navigator Overlay */}
         <AnimatePresence>
           {showNavigator && (
@@ -499,50 +502,50 @@ export default function App() {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="border-2 shadow-2xl rounded-3xl overflow-hidden bg-card/50 backdrop-blur-sm">
-              <CardHeader className="space-y-6 p-8 md:p-10">
+            <Card className="border-2 shadow-xl rounded-2xl overflow-hidden bg-card/50 backdrop-blur-sm">
+              <CardHeader className="space-y-4 p-5 md:p-8">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <div className={cn(
-                      "p-2 rounded-xl",
+                      "p-1.5 rounded-lg",
                       `bg-${currentCategoryConfig?.color}-500/10 text-${currentCategoryConfig?.color}-600`
                     )}>
-                      <HelpCircle className="w-6 h-6" />
+                      <HelpCircle className="w-5 h-5" />
                     </div>
                     <div>
-                      <span className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground block mb-1">Question</span>
-                      <span className="text-xl font-heading font-black">{currentIndex + 1} of {questions.length}</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground block">Question</span>
+                      <span className="text-lg font-heading font-black">{currentIndex + 1} of {questions.length}</span>
                     </div>
                   </div>
                   <div className="flex flex-col items-end">
-                    <div className="bg-muted px-4 py-1.5 rounded-full border-2 border-border shadow-sm">
-                      <span className="text-xs font-black font-mono text-muted-foreground tracking-wider">UPSC {currentQuestion.year}</span>
+                    <div className="bg-muted px-3 py-1 rounded-full border border-border shadow-sm">
+                      <span className="text-[10px] font-black font-mono text-muted-foreground tracking-wider">UPSC {currentQuestion.year}</span>
                     </div>
                   </div>
                 </div>
-                <CardTitle className="text-xl md:text-2xl font-heading font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
+                <CardTitle className="text-lg md:text-2xl font-heading font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
                   {currentQuestion.text}
                 </CardTitle>
               </CardHeader>
 
-              <CardContent className="px-8 md:px-10 pb-10 space-y-8">
+              <CardContent className="px-5 md:px-8 pb-6 space-y-6">
                 <RadioGroup
                   value={currentCategoryAnswers[currentIndex]?.toString() || ""}
                   onValueChange={handleOptionSelect}
-                  className="grid gap-4"
+                  className="grid gap-3"
                 >
                   {currentQuestion.options.map((option, index) => {
                     const isCorrect = index === currentQuestion.correctAnswer;
                     const isSelected = currentCategoryAnswers[currentIndex] === index;
                     const hasAnswered = currentCategoryAnswers[currentIndex] !== undefined;
                     
-                    let variantClass = "border-border hover:border-primary/50 bg-card hover:shadow-md";
+                    let variantClass = "border-border hover:border-primary/50 bg-card hover:shadow-sm";
                     if (hasAnswered) {
-                      if (isCorrect) variantClass = "border-green-500 bg-green-500/10 text-green-700 dark:text-green-400 ring-2 ring-green-500/20 shadow-green-100 dark:shadow-none";
-                      else if (isSelected) variantClass = "border-red-500 bg-red-500/10 text-red-700 dark:text-red-400 ring-2 ring-red-500/20 shadow-red-100 dark:shadow-none";
+                      if (isCorrect) variantClass = "border-green-500 bg-green-500/10 text-green-700 dark:text-green-400 ring-1 ring-green-500/20";
+                      else if (isSelected) variantClass = "border-red-500 bg-red-500/10 text-red-700 dark:text-red-400 ring-1 ring-red-500/20";
                       else variantClass = "opacity-40 border-border bg-card grayscale-[0.5]";
                     } else if (isSelected) {
-                      variantClass = "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-primary-100 dark:shadow-none";
+                      variantClass = "border-primary bg-primary/5 ring-1 ring-primary/20";
                     }
 
                     return (
@@ -555,26 +558,26 @@ export default function App() {
                         <Label
                           htmlFor={`q-${currentIndex}-opt-${index}`}
                           className={cn(
-                            "flex items-start gap-4 p-5 rounded-2xl border-2 transition-all duration-200 cursor-pointer relative z-10",
+                            "flex items-start gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 cursor-pointer relative z-10",
                             variantClass,
-                            !hasAnswered && "hover:-translate-y-0.5 active:scale-[0.98]"
+                            !hasAnswered && "hover:-translate-y-0.5 active:scale-[0.99]"
                           )}
                         >
                           <span className={cn(
-                            "flex items-center justify-center w-8 h-8 rounded-xl border-2 text-sm font-black shrink-0 mt-0.5 transition-colors",
+                            "flex items-center justify-center w-7 h-7 rounded-lg border-2 text-xs font-black shrink-0 mt-0.5 transition-colors",
                             isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/20 text-muted-foreground"
                           )}>
                             {String.fromCharCode(65 + index)}
                           </span>
-                          <span className="text-lg font-medium leading-relaxed pt-0.5">{option}</span>
+                          <span className="text-base md:text-lg font-medium leading-relaxed pt-0.5">{option}</span>
                           {hasAnswered && isCorrect && (
-                            <div className="ml-auto bg-green-500 text-white p-1 rounded-full shadow-lg">
-                              <CheckCircle2 className="w-5 h-5" />
+                            <div className="ml-auto bg-green-500 text-white p-0.5 rounded-full shadow-lg">
+                              <CheckCircle2 className="w-4 h-4" />
                             </div>
                           )}
                           {hasAnswered && isSelected && !isCorrect && (
-                            <div className="ml-auto bg-red-500 text-white p-1 rounded-full shadow-lg">
-                              <XCircle className="w-5 h-5" />
+                            <div className="ml-auto bg-red-500 text-white p-0.5 rounded-full shadow-lg">
+                              <XCircle className="w-4 h-4" />
                             </div>
                           )}
                         </Label>
@@ -585,19 +588,19 @@ export default function App() {
 
                 {currentCategoryAnswers[currentIndex] !== undefined && (
                   <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mt-12 space-y-6"
+                    className="mt-6 space-y-4"
                   >
                     <Separator className="h-0.5 bg-slate-200 dark:bg-slate-800" />
-                    <div className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border-2 border-primary/10 shadow-inner">
-                      <div className="flex items-center gap-3 text-primary mb-4">
-                        <div className="bg-primary/10 p-2 rounded-xl">
-                          <AlertCircle className="w-6 h-6" />
+                    <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-primary/10 shadow-inner">
+                      <div className="flex items-center gap-2 text-primary mb-2">
+                        <div className="bg-primary/10 p-1.5 rounded-lg">
+                          <AlertCircle className="w-5 h-5" />
                         </div>
-                        <h3 className="font-heading font-black text-xl tracking-tight">Expert Explanation</h3>
+                        <h3 className="font-heading font-black text-lg tracking-tight">Explanation</h3>
                       </div>
-                      <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed font-medium">
+                      <p className="text-slate-600 dark:text-slate-400 text-base leading-relaxed font-medium">
                         {currentQuestion.explanation}
                       </p>
                     </div>
@@ -605,29 +608,31 @@ export default function App() {
                 )}
               </CardContent>
 
-              <CardFooter className="bg-slate-100/50 dark:bg-slate-900/50 border-t-2 border-border p-8 flex flex-col sm:flex-row gap-6 justify-between items-center">
-                <div className="flex gap-4 w-full sm:w-auto">
+              <CardFooter className="bg-slate-100/50 dark:bg-slate-900/50 border-t border-border p-5 flex flex-col sm:flex-row gap-4 justify-between items-center">
+                <div className="flex gap-3 w-full sm:w-auto">
                   <Button 
                     onClick={handlePrevious} 
                     disabled={currentIndex === 0}
                     variant="outline" 
-                    className="flex-1 sm:w-36 h-14 rounded-2xl font-bold text-lg shadow-sm border-2"
+                    size="sm"
+                    className="flex-1 sm:w-32 h-11 rounded-xl font-bold text-base shadow-sm border-2"
                   >
-                    <RotateCcw className="mr-2 w-5 h-5 rotate-180" />
-                    Previous
+                    <RotateCcw className="mr-2 w-4 h-4 rotate-180" />
+                    Prev
                   </Button>
                   <Button 
                     onClick={handleNext} 
-                    className="flex-1 sm:w-36 h-14 rounded-2xl font-bold text-lg shadow-lg"
+                    size="sm"
+                    className="flex-1 sm:w-32 h-11 rounded-xl font-bold text-base shadow-lg"
                   >
                     {currentIndex < questions.length - 1 ? "Next" : "Finish"}
-                    <ChevronRight className="ml-2 w-5 h-5" />
+                    <ChevronRight className="ml-1 w-4 h-4" />
                   </Button>
                 </div>
                 
-                <div className="flex items-center gap-3 px-6 py-3 bg-background rounded-2xl border-2 border-border shadow-sm">
-                  <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
-                  <span className="text-sm font-black tracking-widest uppercase text-muted-foreground">
+                <div className="flex items-center gap-2 px-4 py-2 bg-background rounded-xl border border-border shadow-sm">
+                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                  <span className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
                     Score: {score} / {answeredCount}
                   </span>
                 </div>
