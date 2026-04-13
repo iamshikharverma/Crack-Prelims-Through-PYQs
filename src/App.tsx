@@ -12,6 +12,8 @@ import {
   LayoutDashboard,
   Mail,
   Info,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -76,6 +78,20 @@ export default function App() {
   const [score, setScore] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
   const [showNavigator, setShowNavigator] = useState(false);
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem("upsc_dark_mode");
+    return saved ? JSON.parse(saved) : true; // Default to true
+  });
+
+  // Apply dark mode
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("upsc_dark_mode", JSON.stringify(darkMode));
+  }, [darkMode]);
 
   // Save answers to localStorage
   useEffect(() => {
@@ -241,11 +257,39 @@ export default function App() {
   };
 
   if (view === "contact") {
-    return <ContactPage onBack={() => setView("dashboard")} />;
+    return (
+      <>
+        <div className="fixed top-4 right-4 z-50">
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full w-10 h-10 shadow-md bg-background/80 backdrop-blur-sm"
+            onClick={() => setDarkMode(!darkMode)}
+          >
+            {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </Button>
+        </div>
+        <ContactPage onBack={() => setView("dashboard")} />
+      </>
+    );
   }
 
   if (view === "philosophy") {
-    return <PhilosophyPage onBack={() => setView("dashboard")} />;
+    return (
+      <>
+        <div className="fixed top-4 right-4 z-50">
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full w-10 h-10 shadow-md bg-background/80 backdrop-blur-sm"
+            onClick={() => setDarkMode(!darkMode)}
+          >
+            {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </Button>
+        </div>
+        <PhilosophyPage onBack={() => setView("dashboard")} />
+      </>
+    );
   }
 
   if (view === "dashboard") {
@@ -257,7 +301,15 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             className="w-full max-w-6xl mx-auto"
           >
-            <div className="flex justify-center md:justify-end gap-2 mb-4 md:mb-8">
+            <div className="flex justify-center md:justify-end items-center gap-2 mb-4 md:mb-8">
+              <Button
+                variant="outline"
+                size="icon"
+                className="rounded-xl w-9 h-9 shadow-sm"
+                onClick={() => setDarkMode(!darkMode)}
+              >
+                {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </Button>
               <Button 
                 variant="ghost" 
                 size="sm"
@@ -426,6 +478,14 @@ export default function App() {
           </div>
           
           <div className="flex-1 max-w-md flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="icon"
+              className="rounded-xl w-9 h-9 shadow-sm"
+              onClick={() => setDarkMode(!darkMode)}
+            >
+              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
             <div className="flex-1 hidden sm:block">
               <div className="flex justify-between text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">
                 <span>Progress</span>
