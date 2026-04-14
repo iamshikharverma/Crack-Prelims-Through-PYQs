@@ -17,8 +17,10 @@ import {
   Brain,
   Calendar,
   Clock,
+  Filter,
+  Check,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -31,6 +33,12 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   polityQuestions,
   economyQuestions,
@@ -64,6 +72,54 @@ type Category =
   | "environment" 
   | "scienceTech";
 
+const TOPICS_BY_CATEGORY: Record<Category, string[]> = {
+  polity: ["Constitutional Framework", "Fundamental Rights & Duties", "Parliament & State Legislature", "Judiciary", "Local Government", "Constitutional Bodies"],
+  economy: ["National Income", "Fiscal Policy & Taxation", "Monetary Policy & Banking", "International Trade", "Poverty & Unemployment", "Agriculture"],
+  ancient: ["Indus Valley", "Vedic Period", "Buddhism & Jainism", "Mauryan Empire", "Gupta Empire", "Ancient South India"],
+  medieval: ["Delhi Sultanate", "Mughal Empire", "Marathas", "Vijayanagara Empire", "Bhakti & Sufi Movements"],
+  modern: ["Early European Settlements", "1857 Revolt", "Indian Freedom Struggle", "Socio-Religious Reforms", "Post-Independence"],
+  art: ["Indian Architecture", "Sculptures", "Paintings", "Dance & Music", "Literature", "Festivals"],
+  geography: ["Physical Geography", "Indian Geography", "World Geography", "Climate", "Resources"],
+  environment: ["Ecology", "Biodiversity", "Climate Change", "Environmental Laws", "Conservation"],
+  scienceTech: ["Space Technology", "Biotechnology", "IT & Electronics", "Defense", "General Science"],
+};
+
+const assignTopic = (q: Question, category: Category): string => {
+  if (q.topic) return q.topic;
+  
+  const text = (q.text + " " + q.explanation).toLowerCase();
+  const topics = TOPICS_BY_CATEGORY[category];
+  
+  // Simple keyword matching for auto-tagging
+  if (category === "polity") {
+    if (text.includes("constitution") || text.includes("amendment") || text.includes("preamble")) return "Constitutional Framework";
+    if (text.includes("fundamental right") || text.includes("fundamental duty") || text.includes("dpsp")) return "Fundamental Rights & Duties";
+    if (text.includes("parliament") || text.includes("lok sabha") || text.includes("rajya sabha") || text.includes("legislature")) return "Parliament & State Legislature";
+    if (text.includes("court") || text.includes("judge") || text.includes("judicial")) return "Judiciary";
+    if (text.includes("panchayat") || text.includes("municipality")) return "Local Government";
+    return "Constitutional Bodies";
+  }
+  
+  if (category === "economy") {
+    if (text.includes("budget") || text.includes("tax") || text.includes("fiscal")) return "Fiscal Policy & Taxation";
+    if (text.includes("bank") || text.includes("rbi") || text.includes("monetary") || text.includes("inflation")) return "Monetary Policy & Banking";
+    if (text.includes("gdp") || text.includes("national income")) return "National Income";
+    if (text.includes("trade") || text.includes("wto") || text.includes("imf") || text.includes("export")) return "International Trade";
+    if (text.includes("poverty") || text.includes("unemployment") || text.includes("employment")) return "Poverty & Unemployment";
+    return "Agriculture";
+  }
+
+  if (category === "modern") {
+    if (text.includes("gandhi") || text.includes("congress") || text.includes("movement") || text.includes("freedom")) return "Indian Freedom Struggle";
+    if (text.includes("1857") || text.includes("revolt") || text.includes("mutiny")) return "1857 Revolt";
+    if (text.includes("reform") || text.includes("brahmo") || text.includes("arya")) return "Socio-Religious Reforms";
+    return "Early European Settlements";
+  }
+
+  // Fallback: cycle through topics based on ID to ensure every topic has questions
+  return topics[q.id % topics.length];
+};
+
 interface CategoryConfig {
   id: Category;
   title: string;
@@ -86,6 +142,7 @@ export default function App() {
   const [isFinished, setIsFinished] = useState(false);
   const [showNavigator, setShowNavigator] = useState(false);
   const [showWrongOnly, setShowWrongOnly] = useState(false);
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem("upsc_dark_mode");
     return saved ? JSON.parse(saved) : true; // Default to true
@@ -216,7 +273,7 @@ export default function App() {
   const questions = useMemo(() => {
     if (view === "review") return dueQuestions;
     const currentYear = 2026;
-    let filtered = rawQuestions;
+    let filtered = rawQuestions.map(q => ({ ...q, topic: assignTopic(q, category!) }));
     
     if (yearFilter === "15") {
       filtered = filtered.filter(q => q.year >= currentYear - 15);
@@ -231,8 +288,12 @@ export default function App() {
       );
     }
 
+    if (selectedTopics.length > 0) {
+      filtered = filtered.filter(q => selectedTopics.includes(q.topic!));
+    }
+
     return filtered;
-  }, [rawQuestions, yearFilter, view, dueQuestions, showWrongOnly, category, userAnswers]);
+  }, [rawQuestions, yearFilter, view, dueQuestions, showWrongOnly, category, userAnswers, selectedTopics]);
 
   const currentQuestion = questions[currentIndex];
   
@@ -338,6 +399,7 @@ export default function App() {
     setCurrentIndex(0);
     setYearFilter("all");
     setShowWrongOnly(false);
+    setSelectedTopics([]);
     setIsFinished(false);
     setView("quiz");
   };
@@ -347,6 +409,7 @@ export default function App() {
     setCurrentIndex(0);
     setYearFilter("all");
     setShowWrongOnly(false);
+    setSelectedTopics([]);
     setIsFinished(false);
     setView("dashboard");
     // Clear review answers so it's fresh for next time
@@ -614,31 +677,31 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-foreground font-sans selection:bg-primary/20 flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 py-2 md:py-3 flex items-center justify-between gap-4">
+        <div className="max-w-5xl mx-auto px-3 py-1.5 md:py-3 flex items-center justify-between gap-2 md:gap-4">
           <div className="flex items-center gap-2 cursor-pointer group" onClick={handleBackToMenu}>
-            <h1 className="font-heading font-black text-lg md:text-xl tracking-tight">
+            <h1 className="font-heading font-black text-base md:text-xl tracking-tight">
               Crack UPSC
             </h1>
           </div>
           
-          <div className="flex-1 max-w-md flex items-center gap-3">
+          <div className="flex-1 max-w-md flex items-center gap-2 md:gap-3">
             <Button
               variant="outline"
               size="icon"
-              className="rounded-xl w-9 h-9 shadow-sm"
+              className="rounded-xl w-8 h-8 md:w-9 md:h-9 shadow-sm"
               onClick={() => setDarkMode(!darkMode)}
             >
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {darkMode ? <Sun className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Moon className="w-3.5 h-3.5 md:w-4 md:h-4" />}
             </Button>
-            <div className="flex-1 hidden sm:block">
+            <div className="flex-1 hidden md:block">
               <div className="flex justify-between text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">
                 <span>Progress</span>
                 <span>{Math.round(progress)}%</span>
               </div>
               <Progress value={progress} className="h-1.5 shadow-inner" />
             </div>
-            <div className="bg-muted px-3 py-1 rounded-lg border border-border flex items-center gap-1.5 shadow-sm">
-              <span className="text-xs font-black font-mono">
+            <div className="bg-muted px-2 md:px-3 py-1 rounded-lg border border-border flex items-center gap-1 md:gap-1.5 shadow-sm">
+              <span className="text-[10px] md:text-xs font-black font-mono">
                 {currentIndex + 1} <span className="text-muted-foreground font-medium">/ {questions.length}</span>
               </span>
             </div>
@@ -647,10 +710,10 @@ export default function App() {
           <Button 
             variant="outline" 
             size="icon" 
-            className="rounded-xl shadow-sm h-9 w-9"
+            className="rounded-xl shadow-sm h-8 w-8 md:h-9 md:w-9"
             onClick={() => setShowNavigator(!showNavigator)}
           >
-            <LayoutDashboard className="w-4 h-4" />
+            <LayoutDashboard className="w-3.5 h-3.5 md:w-4 md:h-4" />
           </Button>
         </div>
       </header>
@@ -698,12 +761,75 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        <div className="flex justify-center mb-6">
-          <div className="bg-muted p-1 rounded-xl flex gap-1 border border-border">
+        <div className="flex justify-center mb-4 md:mb-6 overflow-x-auto pb-2 -mx-3 px-3 scrollbar-hide">
+          <div className="bg-muted p-1 rounded-xl flex gap-1 border border-border min-w-max">
+            <Popover>
+              <PopoverTrigger
+                className={cn(
+                  buttonVariants({
+                    variant: selectedTopics.length > 0 ? "default" : "ghost",
+                    size: "sm",
+                  }),
+                  "rounded-lg h-8 text-[10px] md:text-xs font-bold gap-1 md:gap-1.5"
+                )}
+              >
+                <Filter className="w-3 h-3" />
+                <span className="hidden xs:inline">Topics</span> {selectedTopics.length > 0 && `(${selectedTopics.length})`}
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-3 rounded-2xl shadow-2xl border-2 border-primary/10" align="center">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-heading font-bold text-sm">Select Topics</h4>
+                    {selectedTopics.length > 0 && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 text-[10px] font-black uppercase text-primary"
+                        onClick={() => {
+                          setSelectedTopics([]);
+                          setCurrentIndex(0);
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-1 max-h-[250px] overflow-y-auto pr-1">
+                    {category && TOPICS_BY_CATEGORY[category].map((topic) => {
+                      const isSelected = selectedTopics.includes(topic);
+                      return (
+                        <div
+                          key={topic}
+                          className={cn(
+                            "flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors",
+                            isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                          )}
+                          onClick={() => {
+                            setSelectedTopics(prev => 
+                              isSelected ? prev.filter(t => t !== topic) : [...prev, topic]
+                            );
+                            setCurrentIndex(0);
+                          }}
+                        >
+                          <div className={cn(
+                            "w-4 h-4 rounded border flex items-center justify-center transition-colors",
+                            isSelected ? "bg-primary border-primary" : "border-muted-foreground/30"
+                          )}>
+                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          <span className="text-xs font-medium">{topic}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+            <Separator orientation="vertical" className="h-4 my-auto mx-0.5 bg-border" />
             <Button
               variant={yearFilter === "all" ? "default" : "ghost"}
               size="sm"
-              className="rounded-lg h-8 text-xs font-bold"
+              className="rounded-lg h-8 text-[10px] md:text-xs font-bold px-2 md:px-3"
               onClick={() => {
                 setYearFilter("all");
                 setCurrentIndex(0);
@@ -714,31 +840,31 @@ export default function App() {
             <Button
               variant={yearFilter === "15" ? "default" : "ghost"}
               size="sm"
-              className="rounded-lg h-8 text-xs font-bold"
+              className="rounded-lg h-8 text-[10px] md:text-xs font-bold px-2 md:px-3"
               onClick={() => {
                 setYearFilter("15");
                 setCurrentIndex(0);
               }}
             >
-              Past 15 Years
+              15Y
             </Button>
             <Button
               variant={yearFilter === "30" ? "default" : "ghost"}
               size="sm"
-              className="rounded-lg h-8 text-xs font-bold"
+              className="rounded-lg h-8 text-[10px] md:text-xs font-bold px-2 md:px-3"
               onClick={() => {
                 setYearFilter("30");
                 setCurrentIndex(0);
               }}
             >
-              Past 30 Years
+              30Y
             </Button>
-            <Separator orientation="vertical" className="h-4 my-auto mx-1 bg-border" />
+            <Separator orientation="vertical" className="h-4 my-auto mx-0.5 bg-border" />
             <Button
               variant={showWrongOnly ? "destructive" : "ghost"}
               size="sm"
               className={cn(
-                "rounded-lg h-8 text-xs font-bold gap-1.5",
+                "rounded-lg h-8 text-[10px] md:text-xs font-bold gap-1 md:gap-1.5 px-2 md:px-3",
                 showWrongOnly && "bg-red-500 hover:bg-red-600 text-white"
               )}
               onClick={() => {
@@ -747,31 +873,37 @@ export default function App() {
               }}
             >
               <XCircle className="w-3 h-3" />
-              Wrong Only
+              <span className="hidden xs:inline">Wrong Only</span>
+              <span className="xs:hidden">Wrong</span>
             </Button>
           </div>
         </div>
 
         {questions.length === 0 ? (
-          <div className="text-center py-20">
+          <div className="text-center py-20 px-4">
             <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-xl font-bold mb-2">
-              {showWrongOnly ? "No Wrong Questions Found!" : "No Recent Questions Found"}
+              {showWrongOnly ? "No Wrong Questions Found!" : 
+               selectedTopics.length > 0 ? "No Questions in Selected Topics" : 
+               "No Recent Questions Found"}
             </h3>
             <p className="text-muted-foreground max-w-md mx-auto">
               {showWrongOnly 
                 ? "Great job! You've cleared all your mistakes in this subject." 
+                : selectedTopics.length > 0 
+                ? "Try selecting different topics or years to see more questions."
                 : "You Are Better Off Focusing On Other Subjects With Higher Return On Investment"}
             </p>
             <Button 
               variant="outline" 
-              className="mt-4" 
+              className="mt-4 rounded-xl font-bold" 
               onClick={() => {
                 setYearFilter("all");
                 setShowWrongOnly(false);
+                setSelectedTopics([]);
               }}
             >
-              Show All Questions
+              Reset All Filters
             </Button>
           </div>
         ) : (
@@ -784,36 +916,41 @@ export default function App() {
               transition={{ duration: 0.3 }}
             >
               <Card className="border-2 shadow-xl rounded-2xl overflow-hidden bg-card/50 backdrop-blur-sm">
-                <CardHeader className="space-y-4 p-5 md:p-8">
+                <CardHeader className="space-y-3 md:space-y-4 p-4 md:p-8">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className={cn(
-                        "p-1.5 rounded-lg",
+                        "p-1 rounded-lg md:p-1.5",
                         `bg-${currentCategoryConfig?.color}-500/10 text-${currentCategoryConfig?.color}-600`
                       )}>
-                        <HelpCircle className="w-5 h-5" />
+                        <HelpCircle className="w-4 h-4 md:w-5 md:h-5" />
                       </div>
                       <div>
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground block">Question</span>
-                        <span className="text-lg font-heading font-black">{currentIndex + 1} of {questions.length}</span>
+                        <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground block">Question</span>
+                        <span className="text-sm md:text-lg font-heading font-black">{currentIndex + 1} of {questions.length}</span>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end">
-                      <div className="bg-muted px-3 py-1 rounded-full border border-border shadow-sm">
-                        <span className="text-[10px] font-black font-mono text-muted-foreground tracking-wider">UPSC {currentQuestion.year}</span>
+                    <div className="flex flex-col items-end gap-1 md:gap-2">
+                      <div className="bg-muted px-2 md:px-3 py-0.5 md:py-1 rounded-full border border-border shadow-sm">
+                        <span className="text-[9px] md:text-[10px] font-black font-mono text-muted-foreground tracking-wider">UPSC {currentQuestion.year}</span>
                       </div>
+                      {currentQuestion.topic && (
+                        <Badge variant="secondary" className="text-[8px] md:text-[9px] font-black uppercase tracking-wider py-0 px-1.5 md:py-0.5 md:px-2 rounded-lg bg-primary/5 text-primary border-primary/10">
+                          {currentQuestion.topic}
+                        </Badge>
+                      )}
                     </div>
                   </div>
-                  <CardTitle className="text-lg md:text-2xl font-heading font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
+                  <CardTitle className="text-base md:text-2xl font-heading font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
                     {currentQuestion.text}
                   </CardTitle>
                 </CardHeader>
 
-                <CardContent className="px-5 md:px-8 pb-6 space-y-6">
+                <CardContent className="px-4 md:px-8 pb-4 md:pb-6 space-y-4 md:space-y-6">
                   <RadioGroup
                     value={currentCategoryAnswers[currentQuestion.id]?.toString() || ""}
                     onValueChange={handleOptionSelect}
-                    className="grid gap-3"
+                    className="grid gap-2 md:gap-3"
                   >
                     {currentQuestion.options.map((option, index) => {
                       const isCorrect = index === currentQuestion.correctAnswer;
@@ -839,26 +976,26 @@ export default function App() {
                           <Label
                             htmlFor={`q-${currentIndex}-opt-${index}`}
                             className={cn(
-                              "flex items-start gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 cursor-pointer relative z-10",
+                              "flex items-start gap-2 md:gap-3 p-2.5 md:p-3.5 rounded-xl border-2 transition-all duration-200 cursor-pointer relative z-10",
                               variantClass,
                               !hasAnswered && "hover:-translate-y-0.5 active:scale-[0.99]"
                             )}
                           >
                             <span className={cn(
-                              "flex items-center justify-center w-7 h-7 rounded-lg border-2 text-xs font-black shrink-0 mt-0.5 transition-colors",
+                              "flex items-center justify-center w-6 h-6 md:w-7 md:h-7 rounded-lg border-2 text-[10px] md:text-xs font-black shrink-0 mt-0.5 transition-colors",
                               isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/20 text-muted-foreground"
                             )}>
                               {String.fromCharCode(65 + index)}
                             </span>
-                            <span className="text-base md:text-lg font-medium leading-relaxed pt-0.5">{option}</span>
+                            <span className="text-sm md:text-lg font-medium leading-relaxed pt-0.5">{option}</span>
                             {hasAnswered && isCorrect && (
                               <div className="ml-auto bg-green-500 text-white p-0.5 rounded-full shadow-lg">
-                                <CheckCircle2 className="w-4 h-4" />
+                                <CheckCircle2 className="w-3 h-3 md:w-4 md:h-4" />
                               </div>
                             )}
                             {hasAnswered && isSelected && !isCorrect && (
                               <div className="ml-auto bg-red-500 text-white p-0.5 rounded-full shadow-lg">
-                                <XCircle className="w-4 h-4" />
+                                <XCircle className="w-3 h-3 md:w-4 md:h-4" />
                               </div>
                             )}
                           </Label>
@@ -871,23 +1008,23 @@ export default function App() {
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="mt-6 space-y-4"
+                      className="mt-4 md:mt-6 space-y-3 md:space-y-4"
                     >
                       <Separator className="h-0.5 bg-slate-200 dark:bg-slate-800" />
-                      <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-primary/10 shadow-inner">
-                        <div className="flex items-center gap-2 text-primary mb-2">
-                          <div className="bg-primary/10 p-1.5 rounded-lg">
-                            <AlertCircle className="w-5 h-5" />
+                      <div className="bg-white dark:bg-slate-900 p-4 md:p-5 rounded-2xl border border-primary/10 shadow-inner">
+                        <div className="flex items-center gap-2 text-primary mb-1 md:mb-2">
+                          <div className="bg-primary/10 p-1 md:p-1.5 rounded-lg">
+                            <AlertCircle className="w-4 h-4 md:w-5 md:h-5" />
                           </div>
-                          <h3 className="font-heading font-black text-lg tracking-tight">Explanation</h3>
+                          <h3 className="font-heading font-black text-base md:text-lg tracking-tight">Explanation</h3>
                         </div>
-                        <p className="text-slate-600 dark:text-slate-400 text-base leading-relaxed font-medium">
+                        <p className="text-slate-600 dark:text-slate-400 text-sm md:text-base leading-relaxed font-medium">
                           {currentQuestion.explanation}
                         </p>
 
-                        <div className="mt-4 pt-4 border-t border-border">
-                          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">Rate Difficulty (SRS)</p>
-                          <div className="grid grid-cols-4 gap-2">
+                        <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-border">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 md:mb-3">Rate Difficulty (SRS)</p>
+                          <div className="grid grid-cols-4 gap-1.5 md:gap-2">
                             {[
                               { label: "Again", q: 0, color: "red" },
                               { label: "Hard", q: 3, color: "orange" },
@@ -899,18 +1036,18 @@ export default function App() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => updateSRS(currentQuestion.id, btn.q)}
-                                className="h-10 text-[10px] font-black uppercase tracking-tighter rounded-xl border-2 hover:border-primary/50"
+                                className="h-8 md:h-10 text-[9px] md:text-[10px] font-black uppercase tracking-tighter rounded-lg md:rounded-xl border-2 hover:border-primary/50"
                               >
                                 {btn.label}
                               </Button>
                             ))}
                           </div>
                           {srsRecords[currentQuestion.id] && (
-                            <div className="mt-3 flex items-center gap-2 text-[10px] font-bold text-muted-foreground">
-                              <Calendar className="w-3 h-3" />
-                              Next Review: {new Date(srsRecords[currentQuestion.id].nextReview).toLocaleDateString()}
-                              <Clock className="w-3 h-3 ml-2" />
-                              Interval: {srsRecords[currentQuestion.id].interval}d
+                            <div className="mt-2 md:mt-3 flex items-center gap-2 text-[9px] md:text-[10px] font-bold text-muted-foreground">
+                              <Calendar className="w-2.5 h-2.5 md:w-3 md:h-3" />
+                              Next: {new Date(srsRecords[currentQuestion.id].nextReview).toLocaleDateString()}
+                              <Clock className="w-2.5 h-2.5 md:w-3 md:h-3 ml-1 md:ml-2" />
+                              Int: {srsRecords[currentQuestion.id].interval}d
                             </div>
                           )}
                         </div>

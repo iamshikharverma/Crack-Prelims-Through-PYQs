@@ -5,6 +5,7 @@ export interface Question {
   correctAnswer: number; // 0-indexed
   explanation: string;
   year: number;
+  topic?: string;
 }
 
 export { polityQuestions } from './polity';
