@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Analytics } from '@vercel/analytics/react';
 import {
   CheckCircle2,
   ChevronRight,
@@ -1106,7 +1105,6 @@ export default function App() {
         )}
       </main>
       <Footer />
-      <Analytics />
     </div>
   );
 }
