@@ -153,15 +153,15 @@ export default function App() {
   });
 
   const allQuestions = useMemo(() => [
-    ...polityQuestions,
-    ...economyQuestions,
-    ...ancientHistoryQuestions,
-    ...medievalHistoryQuestions,
-    ...artCultureQuestions,
-    ...modernHistoryQuestions,
-    ...geographyQuestions,
-    ...environmentQuestions,
-    ...scienceTechQuestions,
+    ...polityQuestions.map(q => ({ ...q, category: "polity" })),
+    ...economyQuestions.map(q => ({ ...q, category: "economy" })),
+    ...ancientHistoryQuestions.map(q => ({ ...q, category: "ancient" })),
+    ...medievalHistoryQuestions.map(q => ({ ...q, category: "medieval" })),
+    ...artCultureQuestions.map(q => ({ ...q, category: "art" })),
+    ...modernHistoryQuestions.map(q => ({ ...q, category: "modern" })),
+    ...geographyQuestions.map(q => ({ ...q, category: "geography" })),
+    ...environmentQuestions.map(q => ({ ...q, category: "environment" })),
+    ...scienceTechQuestions.map(q => ({ ...q, category: "scienceTech" })),
   ], []);
 
   const dueQuestions = useMemo(() => {
@@ -360,6 +360,21 @@ export default function App() {
       ...records,
       [questionId]: next
     }));
+
+    // If Hard (quality < 3), put in Wrong Only category
+    if (quality < 3) {
+      const q = allQuestions.find(q => q.id === questionId);
+      const cat = q?.category as Category || category;
+      if (cat) {
+        setUserAnswers(prev => ({
+          ...prev,
+          [cat]: {
+            ...(prev[cat] || {}),
+            [questionId]: -1 // Mark as wrong to show in Wrong Only
+          }
+        }));
+      }
+    }
   };
 
   const handleNext = () => {
@@ -1023,12 +1038,10 @@ export default function App() {
                         </p>
 
                         <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-border">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 md:mb-3">Rate Difficulty (SRS)</p>
-                          <div className="grid grid-cols-4 gap-1.5 md:gap-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 md:mb-3">Active Recall and Space Repetition - Rate Difficulty</p>
+                          <div className="grid grid-cols-2 gap-1.5 md:gap-2">
                             {[
-                              { label: "Again", q: 0, color: "red" },
-                              { label: "Hard", q: 3, color: "orange" },
-                              { label: "Good", q: 4, color: "green" },
+                              { label: "Hard", q: 0, color: "orange" },
                               { label: "Easy", q: 5, color: "blue" },
                             ].map((btn) => (
                               <Button
@@ -1036,20 +1049,21 @@ export default function App() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => updateSRS(currentQuestion.id, btn.q)}
-                                className="h-8 md:h-10 text-[9px] md:text-[10px] font-black uppercase tracking-tighter rounded-lg md:rounded-xl border-2 hover:border-primary/50"
+                                className={cn(
+                                  "h-8 md:h-10 text-[9px] md:text-[10px] font-black uppercase tracking-tighter rounded-lg md:rounded-xl border-2 hover:border-primary/50",
+                                  btn.q === 0 ? "hover:bg-orange-500/10 hover:border-orange-500" : "hover:bg-blue-500/10 hover:border-blue-500"
+                                )}
                               >
                                 {btn.label}
                               </Button>
                             ))}
                           </div>
-                          {srsRecords[currentQuestion.id] && (
-                            <div className="mt-2 md:mt-3 flex items-center gap-2 text-[9px] md:text-[10px] font-bold text-muted-foreground">
-                              <Calendar className="w-2.5 h-2.5 md:w-3 md:h-3" />
-                              Next: {new Date(srsRecords[currentQuestion.id].nextReview).toLocaleDateString()}
-                              <Clock className="w-2.5 h-2.5 md:w-3 md:h-3 ml-1 md:ml-2" />
-                              Int: {srsRecords[currentQuestion.id].interval}d
+                          <div className="mt-2 md:mt-3 flex flex-col gap-1 text-[9px] md:text-[10px] font-bold text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                              <Info className="w-2.5 h-2.5 md:w-3 md:h-3" />
+                              Questions rated Hard by users go to Wrong Only tab for Review and Revision
                             </div>
-                          )}
+                          </div>
                         </div>
                       </div>
                     </motion.div>

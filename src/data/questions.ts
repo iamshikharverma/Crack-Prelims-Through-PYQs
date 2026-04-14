@@ -6,6 +6,7 @@ export interface Question {
   explanation: string;
   year: number;
   topic?: string;
+  category?: string;
 }
 
 export { polityQuestions } from './polity';
