@@ -1063,8 +1063,8 @@ export const polityQuestions: Question[] = [
       "Planning Commission",
       "UPSC"
     ],
-    "correctAnswer": 0,
-    "explanation": "While the UPSC conducts examinations and recommends candidates, the formal power of appointment to Group A Central Civil Services rests with the President of India.",
+    "correctAnswer": 3,
+    "explanation": "While the formal power of appointment to Group A Central Civil Services rests with the President of India, the UPSC is the body that selects (recruits) the candidates through competitive examinations.",
     "year": 1984
   },
   {
@@ -1136,13 +1136,13 @@ export const polityQuestions: Question[] = [
     "id": 88,
     "text": "Which of the following sequences of States with respect to their representation in Lok Sabha is correct? (> means greater than)",
     "options": [
-      "Maharashtra > Andhra Pradesh > Tamil Nadu > Madhya Pradesh",
+      "Maharashtra > Andhra Pradesh > Madhya Pradesh > Tamil Nadu",
       "Andhra Pradesh > Madhya Pradesh > Tamil Nadu > Maharashtra",
       "Maharashtra > Tamil Nadu > Madhya Pradesh > Andhra Pradesh",
       "Madhya Pradesh > Andhra Pradesh > Tamil Nadu > Maharashtra"
     ],
     "correctAnswer": 0,
-    "explanation": "At the time of the question, the descending order of representation was Maharashtra (48), Andhra Pradesh (42), Madhya Pradesh (40), and Tamil Nadu (39).",
+    "explanation": "At the time of the question (1985), the descending order of representation in Lok Sabha was Maharashtra (48), Andhra Pradesh (42), Madhya Pradesh (40), and Tamil Nadu (39).",
     "year": 1985
   },
   {
