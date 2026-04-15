@@ -16,7 +16,6 @@ The core philosophy of this project is to flip the traditional preparation model
 > "Enjoy preparing for UPSC like you enjoy playing computer games, because the winner often is the one who has the most fun playing it – that’s the 'BAWA' approach. Not just for exams, but honestly, for life too."
 
 ## Features
-- **Active Recall & Spaced Repetition**: Integrated SRS (Anki-style) to help you focus on what you find "Hard."
 - **Topic-wise Filtering**: Drill down into specific sub-topics within subjects.
 - **Wrong Only Mode**: Automatically track and review questions you've struggled with.
 - **Historical Data**: Practice with questions from the last 30+ years.

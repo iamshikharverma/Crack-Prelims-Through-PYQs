@@ -14,9 +14,6 @@ import {
   Info,
   Moon,
   Sun,
-  Brain,
-  Calendar,
-  Clock,
   Filter,
   Check,
 } from "lucide-react";
@@ -55,9 +52,8 @@ import { cn } from "@/lib/utils";
 import { Footer } from "./components/Footer";
 import { ContactPage } from "./components/ContactPage";
 import { PhilosophyPage } from "./components/PhilosophyPage";
-import { SRSData, INITIAL_SRS, calculateSM2 } from "@/lib/srs";
 
-type View = "dashboard" | "quiz" | "contact" | "philosophy" | "review";
+type View = "dashboard" | "quiz" | "contact" | "philosophy";
 
 type YearFilter = "all" | "15" | "30";
 
@@ -147,10 +143,6 @@ export default function App() {
     const saved = localStorage.getItem("upsc_dark_mode");
     return saved ? JSON.parse(saved) : true; // Default to true
   });
-  const [srsRecords, setSrsRecords] = useState<Record<number, SRSData>>(() => {
-    const saved = localStorage.getItem("upsc_srs_records");
-    return saved ? JSON.parse(saved) : {};
-  });
 
   const allQuestions = useMemo(() => [
     ...polityQuestions.map(q => ({ ...q, category: "polity" })),
@@ -162,15 +154,7 @@ export default function App() {
     ...geographyQuestions.map(q => ({ ...q, category: "geography" })),
     ...environmentQuestions.map(q => ({ ...q, category: "environment" })),
     ...scienceTechQuestions.map(q => ({ ...q, category: "scienceTech" })),
-  ].sort((a, b) => b.year - a.year), []);
-
-  const dueQuestions = useMemo(() => {
-    const now = new Date();
-    return allQuestions.filter(q => {
-      const record = srsRecords[q.id];
-      return record && new Date(record.nextReview) <= now;
-    });
-  }, [allQuestions, srsRecords]);
+  ], []);
 
   // Apply dark mode
   useEffect(() => {
@@ -187,11 +171,6 @@ export default function App() {
     localStorage.setItem("upsc_user_answers_v2", JSON.stringify(userAnswers));
   }, [userAnswers]);
 
-  // Save SRS records
-  useEffect(() => {
-    localStorage.setItem("upsc_srs_records", JSON.stringify(srsRecords));
-  }, [srsRecords]);
-
   const categories: CategoryConfig[] = [
     {
       id: "polity",
@@ -199,7 +178,7 @@ export default function App() {
       description: "Constitution, Governance, and Political System.",
       icon: LayoutDashboard,
       color: "blue",
-      questions: [...polityQuestions].sort((a, b) => b.year - a.year),
+      questions: polityQuestions,
     },
     {
       id: "economy",
@@ -207,7 +186,7 @@ export default function App() {
       description: "Planning, Banking, Fiscal Policy, and Development.",
       icon: Trophy,
       color: "emerald",
-      questions: [...economyQuestions].sort((a, b) => b.year - a.year),
+      questions: economyQuestions,
     },
     {
       id: "ancient",
@@ -215,7 +194,7 @@ export default function App() {
       description: "Indus Valley, Mauryas, Guptas, and Early India.",
       icon: BookOpen,
       color: "amber",
-      questions: [...ancientHistoryQuestions].sort((a, b) => b.year - a.year),
+      questions: ancientHistoryQuestions,
     },
     {
       id: "medieval",
@@ -223,7 +202,7 @@ export default function App() {
       description: "Delhi Sultanate, Mughals, and Regional Kingdoms.",
       icon: BookOpen,
       color: "orange",
-      questions: [...medievalHistoryQuestions].sort((a, b) => b.year - a.year),
+      questions: medievalHistoryQuestions,
     },
     {
       id: "modern",
@@ -231,7 +210,7 @@ export default function App() {
       description: "British Rule, Freedom Struggle, and Independence.",
       icon: BookOpen,
       color: "red",
-      questions: [...modernHistoryQuestions].sort((a, b) => b.year - a.year),
+      questions: modernHistoryQuestions,
     },
     {
       id: "art",
@@ -239,7 +218,7 @@ export default function App() {
       description: "Architecture, Dance, Music, and Indian Heritage.",
       icon: HelpCircle,
       color: "purple",
-      questions: [...artCultureQuestions].sort((a, b) => b.year - a.year),
+      questions: artCultureQuestions,
     },
     {
       id: "geography",
@@ -247,7 +226,7 @@ export default function App() {
       description: "Physical, Social, and Economic Geography of India & World.",
       icon: LayoutDashboard,
       color: "indigo",
-      questions: [...geographyQuestions].sort((a, b) => b.year - a.year),
+      questions: geographyQuestions,
     },
     {
       id: "environment",
@@ -255,7 +234,7 @@ export default function App() {
       description: "Ecology, Biodiversity, Climate Change, and Conservation.",
       icon: AlertCircle,
       color: "green",
-      questions: [...environmentQuestions].sort((a, b) => b.year - a.year),
+      questions: environmentQuestions,
     },
     {
       id: "scienceTech",
@@ -263,7 +242,7 @@ export default function App() {
       description: "Developments in Science, Technology, and IT.",
       icon: HelpCircle,
       color: "cyan",
-      questions: [...scienceTechQuestions].sort((a, b) => b.year - a.year),
+      questions: scienceTechQuestions,
     },
   ];
 
@@ -271,7 +250,6 @@ export default function App() {
   const rawQuestions = currentCategoryConfig?.questions || [];
   
   const questions = useMemo(() => {
-    if (view === "review") return dueQuestions;
     const currentYear = 2026;
     let filtered = rawQuestions.map(q => ({ ...q, topic: assignTopic(q, category!) }));
     
@@ -293,11 +271,11 @@ export default function App() {
     }
 
     return filtered;
-  }, [rawQuestions, yearFilter, view, dueQuestions, showWrongOnly, category, userAnswers, selectedTopics]);
+  }, [rawQuestions, yearFilter, showWrongOnly, category, userAnswers, selectedTopics]);
 
   const currentQuestion = questions[currentIndex];
   
-  const currentCategoryAnswers = view === "review" ? userAnswers["review"] || {} : (category ? userAnswers[category] || {} : {});
+  const currentCategoryAnswers = category ? userAnswers[category] || {} : {};
   
   // Clamp currentIndex if questions list changes (e.g. in Wrong Only mode)
   useEffect(() => {
@@ -340,37 +318,16 @@ export default function App() {
       },
     }));
 
-    // Automatically update SRS if they get it wrong
+    // Automatically update Wrong Only if they get it wrong
     if (optionIndex !== currentQuestion.correctAnswer) {
-      updateSRS(currentQuestion.id, 0); // Quality 0 = Again
-    } else {
-      // If they get it right, we could update it with a default quality, 
-      // but maybe better to let them rate it.
-      // For now, let's auto-update with quality 4 (Good) if it's already in SRS
-      if (srsRecords[currentQuestion.id]) {
-        updateSRS(currentQuestion.id, 4);
-      }
-    }
-  };
-
-  const updateSRS = (questionId: number, quality: number) => {
-    const prev = srsRecords[questionId] || INITIAL_SRS;
-    const next = calculateSM2(quality, prev.repetition, prev.interval, prev.efactor);
-    setSrsRecords(records => ({
-      ...records,
-      [questionId]: next
-    }));
-
-    // If Hard (quality < 3), put in Wrong Only category
-    if (quality < 3) {
-      const q = allQuestions.find(q => q.id === questionId);
+      const q = allQuestions.find(q => q.id === currentQuestion.id);
       const cat = q?.category as Category || category;
       if (cat) {
         setUserAnswers(prev => ({
           ...prev,
           [cat]: {
             ...(prev[cat] || {}),
-            [questionId]: -1 // Mark as wrong to show in Wrong Only
+            [currentQuestion.id]: optionIndex
           }
         }));
       }
@@ -427,12 +384,6 @@ export default function App() {
     setSelectedTopics([]);
     setIsFinished(false);
     setView("dashboard");
-    // Clear review answers so it's fresh for next time
-    setUserAnswers(prev => {
-      const next = { ...prev };
-      delete next["review"];
-      return next;
-    });
   };
 
   const getProgressForCategory = (catId: Category) => {
@@ -524,36 +475,6 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
-              {dueQuestions.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="md:col-span-2 lg:col-span-3"
-                >
-                  <Card 
-                    className="group cursor-pointer transition-all duration-300 hover:shadow-2xl border-2 border-primary/50 bg-primary/5 relative overflow-hidden flex flex-col md:flex-row items-center p-6 gap-6"
-                    onClick={() => {
-                      setView("review");
-                      setCategory(null);
-                      setCurrentIndex(0);
-                      setIsFinished(false);
-                    }}
-                  >
-                    <div className="w-20 h-20 rounded-3xl bg-primary/20 flex items-center justify-center shadow-lg shrink-0">
-                      <Brain className="w-10 h-10 text-primary" />
-                    </div>
-                    <div className="flex-1 text-center md:text-left">
-                      <h2 className="text-2xl font-heading font-black mb-1">Daily Review</h2>
-                      <p className="text-muted-foreground font-medium mb-4 md:mb-0">
-                        You have <span className="text-primary font-bold">{dueQuestions.length}</span> questions due for review based on Spaced Repetition.
-                      </p>
-                    </div>
-                    <Button size="lg" className="rounded-2xl font-black px-8 h-14 shadow-xl">
-                      Start Review <ChevronRight className="ml-2 w-5 h-5" />
-                    </Button>
-                  </Card>
-                </motion.div>
-              )}
               {categories.map((cat, idx) => (
                 <motion.div
                   key={cat.id}
@@ -616,9 +537,9 @@ export default function App() {
   }
 
   if (isFinished) {
-    const accentColor = view === "review" ? "primary" : (currentCategoryConfig?.color || "primary");
-    const title = view === "review" ? "Review Completed!" : "Quiz Completed!";
-    const subtitle = view === "review" ? "Daily Review Session" : `You've finished the ${currentCategoryConfig?.title}`;
+    const accentColor = currentCategoryConfig?.color || "primary";
+    const title = "Quiz Completed!";
+    const subtitle = `You've finished the ${currentCategoryConfig?.title}`;
 
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4 font-sans">
@@ -776,8 +697,8 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        <div className="flex justify-center mb-3 md:mb-6 overflow-x-auto pb-1 -mx-3 px-3 scrollbar-hide">
-          <div className="bg-muted p-0.5 md:p-1 rounded-lg md:rounded-xl flex gap-0.5 md:gap-1 border border-border min-w-max">
+        <div className="flex justify-center mb-4 md:mb-6 overflow-x-auto pb-2 -mx-3 px-3 scrollbar-hide">
+          <div className="bg-muted p-1 rounded-xl flex gap-1 border border-border min-w-max">
             <Popover>
               <PopoverTrigger
                 className={cn(
@@ -785,10 +706,10 @@ export default function App() {
                     variant: selectedTopics.length > 0 ? "default" : "ghost",
                     size: "sm",
                   }),
-                  "rounded-md md:rounded-lg h-7 md:h-8 text-[9px] md:text-xs font-bold gap-1 md:gap-1.5 px-2 md:px-3"
+                  "rounded-lg h-8 text-[10px] md:text-xs font-bold gap-1 md:gap-1.5"
                 )}
               >
-                <Filter className="w-2.5 h-2.5 md:w-3 md:h-3" />
+                <Filter className="w-3 h-3" />
                 <span className="hidden xs:inline">Topics</span> {selectedTopics.length > 0 && `(${selectedTopics.length})`}
               </PopoverTrigger>
               <PopoverContent className="w-64 p-3 rounded-2xl shadow-2xl border-2 border-primary/10" align="center">
@@ -840,11 +761,11 @@ export default function App() {
                 </div>
               </PopoverContent>
             </Popover>
-            <Separator orientation="vertical" className="h-3 md:h-4 my-auto mx-0.5 bg-border" />
+            <Separator orientation="vertical" className="h-4 my-auto mx-0.5 bg-border" />
             <Button
               variant={yearFilter === "all" ? "default" : "ghost"}
               size="sm"
-              className="rounded-md md:rounded-lg h-7 md:h-8 text-[9px] md:text-xs font-bold px-1.5 md:px-3"
+              className="rounded-lg h-8 text-[10px] md:text-xs font-bold px-2 md:px-3"
               onClick={() => {
                 setYearFilter("all");
                 setCurrentIndex(0);
@@ -855,7 +776,7 @@ export default function App() {
             <Button
               variant={yearFilter === "15" ? "default" : "ghost"}
               size="sm"
-              className="rounded-md md:rounded-lg h-7 md:h-8 text-[9px] md:text-xs font-bold px-1.5 md:px-3"
+              className="rounded-lg h-8 text-[10px] md:text-xs font-bold px-2 md:px-3"
               onClick={() => {
                 setYearFilter("15");
                 setCurrentIndex(0);
@@ -866,7 +787,7 @@ export default function App() {
             <Button
               variant={yearFilter === "30" ? "default" : "ghost"}
               size="sm"
-              className="rounded-md md:rounded-lg h-7 md:h-8 text-[9px] md:text-xs font-bold px-1.5 md:px-3"
+              className="rounded-lg h-8 text-[10px] md:text-xs font-bold px-2 md:px-3"
               onClick={() => {
                 setYearFilter("30");
                 setCurrentIndex(0);
@@ -874,12 +795,12 @@ export default function App() {
             >
               30Y
             </Button>
-            <Separator orientation="vertical" className="h-3 md:h-4 my-auto mx-0.5 bg-border" />
+            <Separator orientation="vertical" className="h-4 my-auto mx-0.5 bg-border" />
             <Button
               variant={showWrongOnly ? "destructive" : "ghost"}
               size="sm"
               className={cn(
-                "rounded-md md:rounded-lg h-7 md:h-8 text-[9px] md:text-xs font-bold gap-1 md:gap-1.5 px-1.5 md:px-3",
+                "rounded-lg h-8 text-[10px] md:text-xs font-bold gap-1 md:gap-1.5 px-2 md:px-3",
                 showWrongOnly && "bg-red-500 hover:bg-red-600 text-white"
               )}
               onClick={() => {
@@ -887,7 +808,7 @@ export default function App() {
                 setCurrentIndex(0);
               }}
             >
-              <XCircle className="w-2.5 h-2.5 md:w-3 md:h-3" />
+              <XCircle className="w-3 h-3" />
               <span className="hidden xs:inline">Wrong Only</span>
               <span className="xs:hidden">Wrong</span>
             </Button>
@@ -931,41 +852,41 @@ export default function App() {
               transition={{ duration: 0.3 }}
             >
               <Card className="border-2 shadow-xl rounded-2xl overflow-hidden bg-card/50 backdrop-blur-sm">
-                <CardHeader className="space-y-2 md:space-y-4 p-3 md:p-8">
+                <CardHeader className="space-y-3 md:space-y-4 p-4 md:p-8">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 md:gap-2">
+                    <div className="flex items-center gap-2">
                       <div className={cn(
                         "p-1 rounded-lg md:p-1.5",
                         `bg-${currentCategoryConfig?.color}-500/10 text-${currentCategoryConfig?.color}-600`
                       )}>
-                        <HelpCircle className="w-3.5 h-3.5 md:w-5 md:h-5" />
+                        <HelpCircle className="w-4 h-4 md:w-5 md:h-5" />
                       </div>
                       <div>
-                        <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground block">Question</span>
-                        <span className="text-xs md:text-lg font-heading font-black">{currentIndex + 1} of {questions.length}</span>
+                        <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground block">Question</span>
+                        <span className="text-sm md:text-lg font-heading font-black">{currentIndex + 1} of {questions.length}</span>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1 md:gap-2">
-                      <div className="bg-muted px-1.5 md:px-3 py-0.5 md:py-1 rounded-full border border-border shadow-sm">
-                        <span className="text-[8px] md:text-[10px] font-black font-mono text-muted-foreground tracking-wider">UPSC {currentQuestion.year}</span>
+                      <div className="bg-muted px-2 md:px-3 py-0.5 md:py-1 rounded-full border border-border shadow-sm">
+                        <span className="text-[9px] md:text-[10px] font-black font-mono text-muted-foreground tracking-wider">UPSC {currentQuestion.year}</span>
                       </div>
                       {currentQuestion.topic && (
-                        <Badge variant="secondary" className="text-[7px] md:text-[9px] font-black uppercase tracking-wider py-0 px-1 md:py-0.5 md:px-2 rounded-md md:rounded-lg bg-primary/5 text-primary border-primary/10">
+                        <Badge variant="secondary" className="text-[8px] md:text-[9px] font-black uppercase tracking-wider py-0 px-1.5 md:py-0.5 md:px-2 rounded-lg bg-primary/5 text-primary border-primary/10">
                           {currentQuestion.topic}
                         </Badge>
                       )}
                     </div>
                   </div>
-                  <CardTitle className="text-sm md:text-2xl font-heading font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
+                  <CardTitle className="text-base md:text-2xl font-heading font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
                     {currentQuestion.text}
                   </CardTitle>
                 </CardHeader>
 
-                <CardContent className="px-3 md:px-8 pb-3 md:pb-6 space-y-3 md:space-y-6">
+                <CardContent className="px-4 md:px-8 pb-4 md:pb-6 space-y-4 md:space-y-6">
                   <RadioGroup
                     value={currentCategoryAnswers[currentQuestion.id]?.toString() || ""}
                     onValueChange={handleOptionSelect}
-                    className="grid gap-1.5 md:gap-3"
+                    className="grid gap-2 md:gap-3"
                   >
                     {currentQuestion.options.map((option, index) => {
                       const isCorrect = index === currentQuestion.correctAnswer;
@@ -991,26 +912,26 @@ export default function App() {
                           <Label
                             htmlFor={`q-${currentIndex}-opt-${index}`}
                             className={cn(
-                              "flex items-start gap-2 md:gap-3 p-2 md:p-3.5 rounded-lg md:rounded-xl border-2 transition-all duration-200 cursor-pointer relative z-10",
+                              "flex items-start gap-2 md:gap-3 p-2.5 md:p-3.5 rounded-xl border-2 transition-all duration-200 cursor-pointer relative z-10",
                               variantClass,
                               !hasAnswered && "hover:-translate-y-0.5 active:scale-[0.99]"
                             )}
                           >
                             <span className={cn(
-                              "flex items-center justify-center w-5 h-5 md:w-7 md:h-7 rounded-md md:rounded-lg border-2 text-[9px] md:text-xs font-black shrink-0 mt-0.5 transition-colors",
+                              "flex items-center justify-center w-6 h-6 md:w-7 md:h-7 rounded-lg border-2 text-[10px] md:text-xs font-black shrink-0 mt-0.5 transition-colors",
                               isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/20 text-muted-foreground"
                             )}>
                               {String.fromCharCode(65 + index)}
                             </span>
-                            <span className="text-xs md:text-lg font-medium leading-relaxed pt-0.5">{option}</span>
+                            <span className="text-sm md:text-lg font-medium leading-relaxed pt-0.5">{option}</span>
                             {hasAnswered && isCorrect && (
                               <div className="ml-auto bg-green-500 text-white p-0.5 rounded-full shadow-lg">
-                                <CheckCircle2 className="w-2.5 h-2.5 md:w-4 md:h-4" />
+                                <CheckCircle2 className="w-3 h-3 md:w-4 md:h-4" />
                               </div>
                             )}
                             {hasAnswered && isSelected && !isCorrect && (
                               <div className="ml-auto bg-red-500 text-white p-0.5 rounded-full shadow-lg">
-                                <XCircle className="w-2.5 h-2.5 md:w-4 md:h-4" />
+                                <XCircle className="w-3 h-3 md:w-4 md:h-4" />
                               </div>
                             )}
                           </Label>
@@ -1023,78 +944,49 @@ export default function App() {
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="mt-3 md:mt-6 space-y-2 md:space-y-4"
+                      className="mt-4 md:mt-6 space-y-3 md:space-y-4"
                     >
                       <Separator className="h-0.5 bg-slate-200 dark:bg-slate-800" />
-                      <div className="bg-white dark:bg-slate-900 p-3 md:p-5 rounded-xl md:rounded-2xl border border-primary/10 shadow-inner">
-                        <div className="flex items-center gap-1.5 md:gap-2 text-primary mb-1 md:mb-2">
+                      <div className="bg-white dark:bg-slate-900 p-4 md:p-5 rounded-2xl border border-primary/10 shadow-inner">
+                        <div className="flex items-center gap-2 text-primary mb-1 md:mb-2">
                           <div className="bg-primary/10 p-1 md:p-1.5 rounded-lg">
-                            <AlertCircle className="w-3.5 h-3.5 md:w-5 md:h-5" />
+                            <AlertCircle className="w-4 h-4 md:w-5 md:h-5" />
                           </div>
-                          <h3 className="font-heading font-black text-sm md:text-lg tracking-tight">Explanation</h3>
+                          <h3 className="font-heading font-black text-base md:text-lg tracking-tight">Explanation</h3>
                         </div>
-                        <p className="text-slate-600 dark:text-slate-400 text-xs md:text-base leading-relaxed font-medium">
+                        <p className="text-slate-600 dark:text-slate-400 text-sm md:text-base leading-relaxed font-medium">
                           {currentQuestion.explanation}
                         </p>
-
-                        <div className="mt-2 md:mt-4 pt-2 md:pt-4 border-t border-border">
-                          <p className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 md:mb-3">Active Recall and Space Repetition - Rate Difficulty</p>
-                          <div className="grid grid-cols-2 gap-1 md:gap-2">
-                            {[
-                              { label: "Hard", q: 0, color: "orange" },
-                              { label: "Easy", q: 5, color: "blue" },
-                            ].map((btn) => (
-                              <Button
-                                key={btn.label}
-                                variant="outline"
-                                size="sm"
-                                onClick={() => updateSRS(currentQuestion.id, btn.q)}
-                                className={cn(
-                                  "h-7 md:h-10 text-[8px] md:text-[10px] font-black uppercase tracking-tighter rounded-md md:rounded-xl border-2 hover:border-primary/50",
-                                  btn.q === 0 ? "hover:bg-orange-500/10 hover:border-orange-500" : "hover:bg-blue-500/10 hover:border-blue-500"
-                                )}
-                              >
-                                {btn.label}
-                              </Button>
-                            ))}
-                          </div>
-                          <div className="mt-1.5 md:mt-3 flex flex-col gap-1 text-[8px] md:text-[10px] font-bold text-muted-foreground">
-                            <div className="flex items-center gap-1.5 md:gap-2">
-                              <Info className="w-2.5 h-2.5 md:w-3 md:h-3" />
-                              Questions rated Hard by users go to Wrong Only tab for Review and Revision
-                            </div>
-                          </div>
-                        </div>
                       </div>
                     </motion.div>
                   )}
                 </CardContent>
 
-                <CardFooter className="bg-slate-100/50 dark:bg-slate-900/50 border-t border-border p-3 md:p-5 flex flex-col sm:flex-row gap-3 md:gap-4 justify-between items-center">
-                  <div className="flex gap-2 md:gap-3 w-full sm:w-auto">
+                <CardFooter className="bg-slate-100/50 dark:bg-slate-900/50 border-t border-border p-5 flex flex-col sm:flex-row gap-4 justify-between items-center">
+                  <div className="flex gap-3 w-full sm:w-auto">
                     <Button 
                       onClick={handlePrevious} 
                       disabled={currentIndex === 0}
                       variant="outline" 
                       size="sm"
-                      className="flex-1 sm:w-32 h-9 md:h-11 rounded-lg md:rounded-xl font-bold text-sm md:text-base shadow-sm border-2"
+                      className="flex-1 sm:w-32 h-11 rounded-xl font-bold text-base shadow-sm border-2"
                     >
-                      <RotateCcw className="mr-1.5 md:mr-2 w-3.5 h-3.5 md:w-4 md:h-4 rotate-180" />
+                      <RotateCcw className="mr-2 w-4 h-4 rotate-180" />
                       Prev
                     </Button>
                     <Button 
                       onClick={handleNext} 
                       size="sm"
-                      className="flex-1 sm:w-32 h-9 md:h-11 rounded-lg md:rounded-xl font-bold text-sm md:text-base shadow-lg"
+                      className="flex-1 sm:w-32 h-11 rounded-xl font-bold text-base shadow-lg"
                     >
                       {currentIndex < questions.length - 1 ? "Next" : "Finish"}
-                      <ChevronRight className="ml-0.5 md:ml-1 w-3.5 h-3.5 md:w-4 md:h-4" />
+                      <ChevronRight className="ml-1 w-4 h-4" />
                     </Button>
                   </div>
                   
-                  <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-background rounded-lg md:rounded-xl border border-border shadow-sm">
-                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-primary animate-pulse" />
-                    <span className="text-[9px] md:text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-background rounded-xl border border-border shadow-sm">
+                    <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    <span className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
                       Score: {score} / {answeredCount}
                     </span>
                   </div>
