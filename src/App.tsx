@@ -16,6 +16,7 @@ import {
   Sun,
   Filter,
   Check,
+  BarChart3,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -52,8 +53,9 @@ import { cn } from "@/lib/utils";
 import { Footer } from "./components/Footer";
 import { ContactPage } from "./components/ContactPage";
 import { PhilosophyPage } from "./components/PhilosophyPage";
+import { MicroThemeAnalysis } from "./components/MicroThemeAnalysis";
 
-type View = "dashboard" | "quiz" | "contact" | "philosophy";
+type View = "dashboard" | "quiz" | "contact" | "philosophy" | "analysis";
 
 type YearFilter = "all" | "15" | "30";
 
@@ -431,6 +433,24 @@ export default function App() {
     );
   }
 
+  if (view === "analysis") {
+    return (
+      <>
+        <div className="fixed top-4 right-4 z-50">
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full w-10 h-10 shadow-md bg-background/80 backdrop-blur-sm"
+            onClick={() => setDarkMode(!darkMode)}
+          >
+            {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </Button>
+        </div>
+        <MicroThemeAnalysis onBack={() => handleBackToMenu()} />
+      </>
+    );
+  }
+
   if (view === "dashboard") {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans">
@@ -471,7 +491,15 @@ export default function App() {
               <h1 className="text-2xl md:text-5xl font-heading font-black tracking-tight mb-2 bg-gradient-to-r from-primary via-purple-500 to-blue-600 bg-clip-text text-transparent">
                 Crack UPSC Prelims
               </h1>
-              <p className="text-sm md:text-lg text-muted-foreground font-medium">Practice with Previous Year Questions</p>
+              <p className="text-sm md:text-lg text-muted-foreground font-medium mb-6">Practice with Previous Year Questions</p>
+              
+              <Button 
+                onClick={() => setView("analysis")}
+                size="lg"
+                className="rounded-2xl font-black gap-2 h-12 shadow-lg hover:scale-105 transition-all bg-slate-900 dark:bg-slate-100 dark:text-slate-900"
+              >
+                <BarChart3 className="w-5 h-5" /> Micro Theme Analysis
+              </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
